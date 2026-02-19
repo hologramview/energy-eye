@@ -178,6 +178,26 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .send-btn{background:var(--accent);color:var(--bg);border:none;border-radius:4px;width:34px;height:34px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .send-btn:hover{filter:brightness(1.15);transform:scale(1.05)}
 .send-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+
+/* ── Charts in side panel ── */
+.chart-wrap{padding:8px 10px}
+.chart-ttl{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.chart-canvas-wrap{position:relative;width:100%}
+
+/* ── N-1 toggle ── */
+.n1-btn{position:absolute;top:10px;right:10px;z-index:900;font-family:var(--mono);font-size:.62rem;padding:5px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
+.n1-btn:hover{border-color:var(--amber);color:var(--amber)}
+.n1-btn.active{background:rgba(255,170,0,.15);border-color:var(--amber);color:var(--amber)}
+.n1-pulse{animation:n1blink 1s step-end infinite}
+@keyframes n1blink{50%{opacity:.4}}
+
+/* ── Export button ── */
+.export-btn{font-family:var(--mono);font-size:.62rem;padding:4px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
+.export-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* ── Alert map-link ── */
+.al-maplink{font-family:var(--mono);font-size:.56rem;color:var(--muted);margin-top:3px;cursor:pointer;transition:color .15s;display:inline-block}
+.al-maplink:hover{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -205,6 +225,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
   </div>
   <div class="hdr-right">
     <button class="pill" id="lang-btn" onclick="toggleLang()">EN</button>
+    <button class="export-btn" onclick="exportReport()" title="Export grid report">⬇ REPORT</button>
     <button class="pill" id="theme-btn" onclick="toggleTheme()">☀</button>
     <span class="pill live">● LIVE</span>
     <span class="clock" id="clock">00:00:00</span>
@@ -259,6 +280,9 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
         </div>
       </div>
 
+      <!-- N-1 TOGGLE -->
+      <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
+
       <!-- SIDE PANEL -->
       <div class="map-side">
         <div class="side-ttl" id="side-ttl"><span id="lbl-select">Selecciona una región</span></div>
@@ -267,6 +291,24 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
         <div class="sub-list" id="sub-list">
           <div style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px" id="sub-hint">
             Haz clic en una región<br>para ver sus datos
+          </div>
+        </div>
+        <!-- Generation mix donut -->
+        <div id="mix-section" style="display:none">
+          <div class="side-ttl"><span id="lbl-genmix">Mix Generación</span></div>
+          <div class="chart-wrap">
+            <div class="chart-canvas-wrap" style="height:130px">
+              <canvas id="mix-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- 24h Demand forecast -->
+        <div id="forecast-section" style="display:none">
+          <div class="side-ttl"><span id="lbl-forecast">Previsión 24h</span></div>
+          <div class="chart-wrap">
+            <div class="chart-canvas-wrap" style="height:110px">
+              <canvas id="forecast-canvas"></canvas>
+            </div>
           </div>
         </div>
       </div>
@@ -318,6 +360,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 'use strict';
 
@@ -443,23 +486,23 @@ function toggleTheme() {
 //  ENERGY DATA  (NUTS codes = guaranteed match)
 // ═══════════════════════════════════════════════
 const ccaaData = {
-  'ES11':{name:'Galicia',             capital:'Santiago de Compostela',load:62,status:'ok',   gen:1800,ren:78},
-  'ES12':{name:'Asturias',            capital:'Oviedo',               load:54,status:'ok',   gen:900, ren:45},
-  'ES13':{name:'Cantabria',           capital:'Santander',            load:48,status:'ok',   gen:520, ren:42},
-  'ES21':{name:'País Vasco',          capital:'Vitoria-Gasteiz',      load:71,status:'ok',   gen:1200,ren:38},
-  'ES22':{name:'Navarra',             capital:'Pamplona',             load:65,status:'ok',   gen:980, ren:82},
-  'ES23':{name:'La Rioja',            capital:'Logroño',              load:58,status:'ok',   gen:310, ren:61},
-  'ES24':{name:'Aragón',              capital:'Zaragoza',             load:69,status:'ok',   gen:2100,ren:74},
-  'ES30':{name:'Madrid',              capital:'Madrid',               load:78,status:'ok',   gen:1100,ren:22},
-  'ES41':{name:'Castilla y León',     capital:'Valladolid',           load:58,status:'ok',   gen:3200,ren:68},
-  'ES42':{name:'Castilla-La Mancha',  capital:'Toledo',               load:55,status:'ok',   gen:2800,ren:71},
-  'ES43':{name:'Extremadura',         capital:'Mérida',               load:44,status:'ok',   gen:1600,ren:85},
-  'ES51':{name:'Cataluña',            capital:'Barcelona',            load:73,status:'ok',   gen:3800,ren:41},
-  'ES52':{name:'C. Valenciana',       capital:'Valencia',             load:87,status:'warn', gen:1900,ren:48},
-  'ES53':{name:'Illes Balears',       capital:'Palma',                load:61,status:'ok',   gen:580, ren:35},
-  'ES61':{name:'Andalucía',           capital:'Sevilla',              load:68,status:'ok',   gen:5200,ren:79},
-  'ES62':{name:'Murcia',              capital:'Murcia',               load:72,status:'ok',   gen:720, ren:62},
-  'ES70':{name:'Canarias',            capital:'Las Palmas',           load:74,status:'ok',   gen:680, ren:44},
+  'ES11':{name:'Galicia',             capital:'Santiago de Compostela',load:62,status:'ok',   gen:1800,ren:78,mix:[420, 180, 0, 980, 120, 100]},
+  'ES12':{name:'Asturias',            capital:'Oviedo',               load:54,status:'ok',   gen:900, ren:45,mix:[280, 60, 0, 180, 320, 60]},
+  'ES13':{name:'Cantabria',           capital:'Santander',            load:48,status:'ok',   gen:520, ren:42,mix:[180, 40, 0, 60, 200, 40]},
+  'ES21':{name:'País Vasco',          capital:'Vitoria-Gasteiz',      load:71,status:'ok',   gen:1200,ren:38,mix:[420, 120, 0, 80, 480, 100]},
+  'ES22':{name:'Navarra',             capital:'Pamplona',             load:65,status:'ok',   gen:980, ren:82,mix:[640, 180, 0, 60, 80, 20]},
+  'ES23':{name:'La Rioja',            capital:'Logroño',              load:58,status:'ok',   gen:310, ren:61,mix:[160, 80, 0, 20, 40, 10]},
+  'ES24':{name:'Aragón',              capital:'Zaragoza',             load:69,status:'ok',   gen:2100,ren:74,mix:[1200, 480, 0, 160, 200, 60]},
+  'ES30':{name:'Madrid',              capital:'Madrid',               load:78,status:'ok',   gen:1100,ren:22,mix:[80, 120, 0, 20, 780, 100]},
+  'ES41':{name:'Castilla y León',     capital:'Valladolid',           load:58,status:'ok',   gen:3200,ren:68,mix:[1800, 480, 0, 480, 280, 160]},
+  'ES42':{name:'Castilla-La Mancha',  capital:'Toledo',               load:55,status:'ok',   gen:2800,ren:71,mix:[1400, 980, 0, 60, 280, 80]},
+  'ES43':{name:'Extremadura',         capital:'Mérida',               load:44,status:'ok',   gen:1600,ren:85,mix:[480, 880, 0, 80, 120, 40]},
+  'ES51':{name:'Cataluña',            capital:'Barcelona',            load:73,status:'ok',   gen:3800,ren:41,mix:[480, 620, 2080, 80, 420, 120]},
+  'ES52':{name:'C. Valenciana',       capital:'Valencia',             load:87,status:'warn', gen:1900,ren:48,mix:[280, 680, 0, 60, 780, 100]},
+  'ES53':{name:'Illes Balears',       capital:'Palma',                load:61,status:'ok',   gen:580, ren:35,mix:[80, 240, 0, 0, 220, 40]},
+  'ES61':{name:'Andalucía',           capital:'Sevilla',              load:68,status:'ok',   gen:5200,ren:79,mix:[1200, 2800, 0, 120, 880, 200]},
+  'ES62':{name:'Murcia',              capital:'Murcia',               load:72,status:'ok',   gen:720, ren:62,mix:[180, 320, 0, 20, 160, 40]},
+  'ES70':{name:'Canarias',            capital:'Las Palmas',           load:74,status:'ok',   gen:680, ren:44,mix:[120, 180, 0, 0, 320, 60]},
 };
 
 const provData = {
@@ -527,7 +570,7 @@ const alertsData = [
     priority: 'P1',
     eta:      {es:'2–4 horas', en:'2–4 hours'},
     affected: {es:'~12,400 clientes potencialmente afectados', en:'~12,400 customers potentially affected'},
-    code:     'FLT-2024-0891',
+    code:     'FLT-2024-0891', mapLatLon:[43.37, -8.4],
   },
   {
     type:'warn',
@@ -540,7 +583,7 @@ const alertsData = [
     priority: 'P2',
     eta:      {es:'Resolución esperada tras reducción de temperatura nocturna', en:'Resolution expected after overnight temperature drop'},
     affected: {es:'Carga industrial en polígono Sur Ebro', en:'Industrial load in Sur Ebro industrial park'},
-    code:     'WRN-2024-1134',
+    code:     'WRN-2024-1134', mapLatLon:[41.65, -0.87],
   },
   {
     type:'warn',
@@ -553,7 +596,7 @@ const alertsData = [
     priority: 'P2',
     eta:      {es:'Resolución automática prevista a las 16:30', en:'Automatic resolution expected at 16:30'},
     affected: {es:'Calidad de suministro en zona costera Valencia Norte', en:'Supply quality in Valencia North coastal area'},
-    code:     'WRN-2024-1098',
+    code:     'WRN-2024-1098', mapLatLon:[39.47, -0.38],
   },
   {
     type:'info',
@@ -566,7 +609,7 @@ const alertsData = [
     priority: 'P3',
     eta:      {es:'Rampa estabilizada en ~45 min según pronóstico meteorológico', en:'Ramp stabilisation in ~45 min per weather forecast'},
     affected: {es:'Generación neta Navarra +340 MW', en:'Net generation Navarra +340 MW'},
-    code:     'INF-2024-0442',
+    code:     'INF-2024-0442', mapLatLon:[42.81, -1.64],
   },
   {
     type:'info',
@@ -579,7 +622,7 @@ const alertsData = [
     priority: 'P4',
     eta:      {es:'Reducción natural prevista a partir de las 17:30', en:'Natural reduction expected from 17:30'},
     affected: {es:'Precio marginal eléctrico en mínimos del día', en:'Marginal electricity price at daily minimum'},
-    code:     'INF-2024-0438',
+    code:     'INF-2024-0438', mapLatLon:[40.4, -3.7],
   },
   {
     type:'warn',
@@ -592,7 +635,7 @@ const alertsData = [
     priority: 'P2',
     eta:      {es:'Crítico si supera 95°C — acción inmediata requerida', en:'Critical if exceeding 95°C — immediate action required'},
     affected: {es:'Zona sur Madrid metropolitano, ~180,000 clientes', en:'South Madrid metropolitan area, ~180,000 customers'},
-    code:     'WRN-2024-1201',
+    code:     'WRN-2024-1201', mapLatLon:[40.42, -3.7],
   },
   {
     type:'info',
@@ -605,7 +648,7 @@ const alertsData = [
     priority: 'P4',
     eta:      {es:'Importación prevista hasta las 22:00h', en:'Import forecast until 22:00h'},
     affected: {es:'Reducción de precio marginal en mercado diario español', en:'Reduction in marginal price on Spanish day-ahead market'},
-    code:     'INF-2024-0451',
+    code:     'INF-2024-0451', mapLatLon:[43.32, -1.98],
   },
   {
     type:'warn',
@@ -618,7 +661,7 @@ const alertsData = [
     priority: 'P2',
     eta:      {es:'Punta máxima estimada: 37,800 MW a las 20:15', en:'Estimated peak: 37,800 MW at 20:15'},
     affected: {es:'Sistema nacional — todos los operadores de distribución', en:'National system — all distribution operators'},
-    code:     'WRN-2024-1188',
+    code:     'WRN-2024-1188', mapLatLon:[40.4, -3.7],
   },
   {
     type:'info',
@@ -631,7 +674,7 @@ const alertsData = [
     priority: 'P4',
     eta:      {es:'Generación sostenida prevista durante 48–72h', en:'Sustained generation forecast for 48–72h'},
     affected: {es:'Exportación neta Galicia al alza. Beneficio para el sistema nacional.', en:'Galicia net export rising. Benefit for national system.'},
-    code:     'INF-2024-0455',
+    code:     'INF-2024-0455', mapLatLon:[42.88, -8.54],
   },
   {
     type:'fault',
@@ -644,7 +687,7 @@ const alertsData = [
     priority: 'P1',
     eta:      {es:'Ventana crítica: próximas 2 horas. Resolución prevista en 6h si temperatura ambiental baja.', en:'Critical window: next 2 hours. Resolution expected in 6h if ambient temperature drops.'},
     affected: {es:'Capacidad de transporte Sevilla–Málaga reducida al 60%', en:'Sevilla–Málaga transport capacity reduced to 60%'},
-    code:     'FLT-2024-0892',
+    code:     'FLT-2024-0892', mapLatLon:[37.18, -4.5],
   },
 ];
 
@@ -1072,6 +1115,10 @@ function refreshTooltips() {
 // ─── SHOW/HIDE LAYERS ───
 function clearLayers() {
   Object.values(layers).forEach(l => { if(l) map.removeLayer(l); });
+  document.getElementById('mix-section').style.display = 'none';
+  document.getElementById('forecast-section').style.display = 'none';
+  if (mixChart)      { mixChart.destroy();      mixChart = null; }
+  if (forecastChart) { forecastChart.destroy();  forecastChart = null; }
 }
 
 // ─── TABS ───
@@ -1119,6 +1166,8 @@ function loadNacional() {
 
 async function setTab(tab) {
   if (tab === currentTab) return;
+  // Hide N-1 when leaving transport tab
+  if (currentTab === 'red') showN1Button(false);
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
 
@@ -1149,6 +1198,7 @@ async function setTab(tab) {
   } else if (tab === 'red') {
     loadRed();
     map.flyTo([40.4,-3.7], 6, {duration:1});
+    showN1Button(true);
   }
 }
 
@@ -1209,6 +1259,9 @@ function selectProv(id, layer) {
       <div class="rd-stat"><div class="rd-val" style="color:${col}">${t('s_'+d.status)}</div><div class="rd-lbl">${t('status')}</div></div>
     </div>`;
   document.getElementById('lbl-subtable').textContent = t('subtable');
+  // Draw generation mix + forecast charts
+  drawMixDonut(id);
+  drawForecastChart(id);
   renderSubList([{id:d.name.substring(0,6).toUpperCase(),name:d.name+' Central',load:d.load,status:d.status}]);
   showBreadcrumb(parent?parent.name:'', d.name);
   try { map.fitBounds(layer.getBounds(), {padding:[50,50], maxZoom:11}); } catch(_){}
@@ -1274,7 +1327,8 @@ function renderAlertCard(entry, idx) {
   const el = document.createElement('div');
   el.className = `al ${a.type}${selectedAlertIdx===idx?' selected':''}`;
   el.dataset.idx = idx;
-  el.innerHTML = `<div class="al-t">${time} &nbsp;·&nbsp; <span class="ad-priority ad-${a.priority?.toLowerCase()||'p4'}">${a.priority||''}</span> &nbsp; <span class="ad-code">${a.code||''}</span></div><div class="al-m">${a[lang]||a.es}</div><div class="al-l">${a.loc}</div>`;
+  const hasMap = !!a.mapLatLon;
+  el.innerHTML = `<div class="al-t">${time} &nbsp;·&nbsp; <span class="ad-priority ad-${a.priority?.toLowerCase()||'p4'}">${a.priority||''}</span> &nbsp; <span class="ad-code">${a.code||''}</span></div><div class="al-m">${a[lang]||a.es}</div><div class="al-l">${a.loc}${hasMap?` &nbsp;<span class="al-maplink" onclick="event.stopPropagation();flyToAlert(liveAlerts[${idx}].a)">🗺 ${lang==='es'?'ver en mapa':'view on map'}</span>`:''}`;
   el.onclick = () => showAlertDetail(idx);
   return el;
 }
@@ -1314,7 +1368,7 @@ function showAlertDetail(idx) {
       <div class="ad-section">
         <div class="ad-code" style="margin-bottom:4px">${a.code||''} &nbsp;·&nbsp; ${time}</div>
         <div style="font-family:var(--head);font-size:.9rem;font-weight:700;color:${col};letter-spacing:1px;line-height:1.3">${a[lang]||a.es}</div>
-        <div style="font-family:var(--mono);font-size:.62rem;color:var(--accent);margin-top:4px">📍 ${a.loc}</div>
+        <div style="font-family:var(--mono);font-size:.62rem;color:var(--accent);margin-top:4px">📍 ${a.loc}${a.mapLatLon?` &nbsp;<span style="cursor:pointer;color:var(--muted)" onclick="flyToAlert(liveAlerts[${idx}].a)">🗺 ${lang==='es'?'ver en mapa':'view on map'}</span>`:''}</div>
       </div>
       <div class="ad-section">
         <div class="ad-label">${lang==='es'?'Causa':'Cause'}</div>
@@ -1418,6 +1472,391 @@ function sendSugg(btn) {
   document.getElementById('chat-inp').value = btn.textContent.trim();
   sendMsg();
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FEATURE 1 — GENERATION MIX DONUT CHART
+// ═══════════════════════════════════════════════════════════════════════
+let mixChart = null;
+let forecastChart = null;
+
+function drawMixDonut(ccaaId) {
+  const d = ccaaData[ccaaId];
+  if (!d || !d.mix) return;
+  document.getElementById('mix-section').style.display = '';
+
+  const labels = lang==='es'
+    ? ['Eólica','Solar','Nuclear','Hidro','Gas','Otros']
+    : ['Wind','Solar','Nuclear','Hydro','Gas','Other'];
+  const colors = ['#00c8ff','#ffaa00','#a855f7','#00ff88','#ff7043','#607d8b'];
+  const data = d.mix;
+  const total = data.reduce((a,b)=>a+b,0);
+
+  if (mixChart) { mixChart.destroy(); mixChart = null; }
+  const ctx = document.getElementById('mix-canvas').getContext('2d');
+
+  mixChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: colors,
+        borderColor: 'transparent',
+        borderWidth: 0,
+        hoverOffset: 4,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: getComputedStyle(document.body).getPropertyValue('--text').trim() || '#cce0f5',
+            font: { family: 'Share Tech Mono', size: 9 },
+            boxWidth: 8,
+            padding: 6,
+            filter: (item, data) => data.datasets[0].data[item.index] > 0,
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const pct = total>0 ? ((ctx.parsed/total)*100).toFixed(1) : 0;
+              return ` ${ctx.parsed} MW (${pct}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Renewable % in centre
+  const wind=d.mix[0], solar=d.mix[1], nuclear=d.mix[2]||0, hydro=d.mix[3];
+  const renPct = total>0 ? Math.round((wind+solar+hydro)/total*100) : 0;
+  // Draw centre text using Chart.js plugin
+  Chart.register({
+    id: `donut-centre-${ccaaId}`,
+    beforeDraw(chart) {
+      if (chart.canvas.id !== 'mix-canvas') return;
+      const {width,height,ctx} = chart;
+      ctx.save();
+      const cx = chart.chartArea ? (chart.chartArea.left+chart.chartArea.right)/2 : width/2;
+      const cy = chart.chartArea ? (chart.chartArea.top+chart.chartArea.bottom)/2 : height/2;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#00ff88';
+      ctx.font = 'bold 14px Share Tech Mono';
+      ctx.fillText(renPct+'%', cx, cy-6);
+      ctx.fillStyle = '#3d6080';
+      ctx.font = '8px Share Tech Mono';
+      ctx.fillText(lang==='es'?'REN':'REN', cx, cy+8);
+      ctx.restore();
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FEATURE 2 — 24H DEMAND FORECAST CHART
+// ═══════════════════════════════════════════════════════════════════════
+function drawForecastChart(ccaaId) {
+  const d = ccaaData[ccaaId];
+  if (!d) return;
+  document.getElementById('forecast-section').style.display = '';
+
+  // Generate realistic 24h demand curve based on region load
+  const base = d.gen * 0.7;
+  const hours = Array.from({length:25}, (_,i) => i);
+  // Typical Spanish demand profile: valley 2-6h, peak 12h + peak 20-21h
+  const profile = [0.72,0.68,0.65,0.63,0.62,0.64,0.70,0.78,0.86,0.90,0.93,0.95,
+                   0.97,0.96,0.94,0.92,0.91,0.93,0.97,1.00,0.99,0.96,0.90,0.82,0.75];
+  const actual   = profile.slice(0,13).map(p => Math.round(base * p * (0.96+Math.random()*0.08)));
+  const forecast = profile.map(p => Math.round(base * p));
+  // Current hour index (simulated)
+  const nowH = new Date().getHours();
+
+  if (forecastChart) { forecastChart.destroy(); forecastChart = null; }
+  const ctx = document.getElementById('forecast-canvas').getContext('2d');
+  const textCol = theme==='light' ? '#1a2a3a' : '#cce0f5';
+  const mutedCol = theme==='light' ? '#5a7a9a' : '#3d6080';
+  const gridCol  = theme==='light' ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.06)';
+
+  forecastChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: hours.map(h => h+'h'),
+      datasets: [
+        {
+          label: lang==='es'?'Real':'Actual',
+          data: [...actual, ...Array(12).fill(null)],
+          borderColor: '#00c8ff',
+          backgroundColor: 'rgba(0,200,255,.08)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.4,
+          spanGaps: false,
+        },
+        {
+          label: lang==='es'?'Previsión':'Forecast',
+          data: forecast,
+          borderColor: '#ffaa00',
+          borderDash: [4,3],
+          borderWidth: 1.2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: {
+          labels: {
+            color: mutedCol,
+            font: { family:'Share Tech Mono', size:8 },
+            boxWidth:10, padding:8,
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString()||'—'} MW`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color:mutedCol, font:{family:'Share Tech Mono',size:7}, maxTicksLimit:7 },
+          grid: { color:gridCol },
+        },
+        y: {
+          ticks: { color:mutedCol, font:{family:'Share Tech Mono',size:7}, maxTicksLimit:4,
+                   callback: v => (v/1000).toFixed(1)+'GW' },
+          grid: { color:gridCol },
+        },
+      },
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FEATURE 3 — N-1 CONTINGENCY ANALYSIS
+// ═══════════════════════════════════════════════════════════════════════
+let n1Active = false;
+let n1Overlays = [];
+
+// Grid lines with their data — matches loadRed order
+const n1GridData = [
+  {util:72, limit:1720, flow:1240},
+  {util:81, limit:2280, flow:1850}, // HIGH — would cause overload on parallel
+  {util:58, limit:1690, flow:980},
+  {util:77, limit:2720, flow:2100},
+  {util:62, limit:1220, flow:760},
+  {util:48, limit:1120, flow:540},
+  {util:69, limit:2000, flow:1380},
+  {util:44, limit:950,  flow:420},
+  {util:55, limit:1240, flow:680},
+  {util:74, limit:2100, flow:1560},
+  {util:63, limit:1410, flow:890},
+  {util:51, limit:1450, flow:740},
+];
+
+const n1GridCoords = [
+  [[43.26,-2.92],[43.32,-1.98],[41.65,2.18]],
+  [[40.4,-3.7],[41.39,-3.69],[41.65,2.18]],
+  [[40.4,-3.7],[39.47,-0.38]],
+  [[40.4,-3.7],[39.1,-4.05],[37.39,-5.98]],
+  [[40.4,-3.7],[42.35,-3.7],[43.26,-2.92]],
+  [[40.4,-3.7],[41.66,-4.72]],
+  [[37.39,-5.98],[36.72,-4.42],[37.99,-1.13]],
+  [[37.39,-5.98],[37.26,-6.95],[37.1,-7.85]],
+  [[39.47,-0.38],[37.99,-1.13]],
+  [[39.47,-0.38],[41.65,2.18]],
+  [[41.65,2.18],[42.35,3.13]],
+  [[40.4,-3.7],[38.99,-6.83]],
+];
+
+function toggleN1() {
+  n1Active = !n1Active;
+  const btn = document.getElementById('n1-btn');
+  btn.classList.toggle('active', n1Active);
+
+  // Remove previous overlays
+  n1Overlays.forEach(l => map.removeLayer(l));
+  n1Overlays = [];
+
+  if (!n1Active) {
+    btn.textContent = 'N-1 OFF';
+    return;
+  }
+
+  btn.textContent = lang==='es' ? 'N-1 ✓ ACTIVO' : 'N-1 ✓ ACTIVE';
+
+  // For each grid line, simulate what happens if it trips: flow redistributes
+  // Lines above 80% utilisation become critical if a neighbour trips
+  n1GridCoords.forEach((coords, i) => {
+    const d = n1GridData[i];
+    // Simulate: if any adjacent line (simplified — parallel lines) fails,
+    // this line absorbs ~40% extra load
+    const simulatedUtil = Math.min(100, d.util * 1.4);
+    let status, color, dash;
+    if (simulatedUtil >= 100) {
+      status = lang==='es'?'SOBRECARGA BAJO N-1':'OVERLOAD UNDER N-1';
+      color = '#ff3535'; dash = '6 3';
+    } else if (simulatedUtil >= 85) {
+      status = lang==='es'?'CARGA ALTA BAJO N-1':'HIGH LOAD UNDER N-1';
+      color = '#ffaa00'; dash = '8 4';
+    } else {
+      status = lang==='es'?'SEGURO':'SECURE';
+      color = '#00ff88'; dash = null;
+    }
+
+    const line = L.polyline(coords, {
+      color, weight: 4, opacity: 0.9,
+      dashArray: dash || undefined,
+      className: simulatedUtil >= 100 ? 'n1-pulse' : '',
+    });
+
+    line.bindTooltip(
+      `<b style="color:${color}">N-1: ${status}</b><br>
+       <span style="color:var(--muted);font-size:.6rem">
+         ${lang==='es'?'Carga normal':'Normal load'}: ${d.util}% → 
+         ${lang==='es'?'Bajo contingencia':'Under contingency'}: ${simulatedUtil.toFixed(0)}%
+       </span>`,
+      { sticky:true, opacity:1 }
+    );
+    line.addTo(map);
+    n1Overlays.push(line);
+  });
+}
+
+function showN1Button(show) {
+  document.getElementById('n1-btn').style.display = show ? '' : 'none';
+  if (!show && n1Active) {
+    // Clean up when leaving transport tab
+    n1Overlays.forEach(l => map.removeLayer(l));
+    n1Overlays = [];
+    n1Active = false;
+    document.getElementById('n1-btn').classList.remove('active');
+    document.getElementById('n1-btn').textContent = 'N-1 OFF';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FEATURE 4 — ALERT → MAP LINKAGE
+// ═══════════════════════════════════════════════════════════════════════
+function flyToAlert(alert) {
+  if (!alert.mapLatLon) return;
+  // Switch to comunidades tab first so map is visible
+  if (currentTab === 'alertas') {
+    setTab('comunidades').then(() => {
+      setTimeout(() => {
+        map.flyTo(alert.mapLatLon, 9, {duration: 1.2});
+        // Add a temporary pulse marker
+        addAlertMarker(alert);
+      }, 400);
+    });
+  } else {
+    map.flyTo(alert.mapLatLon, 9, {duration: 1.2});
+    addAlertMarker(alert);
+  }
+}
+
+let alertMarker = null;
+function addAlertMarker(alert) {
+  if (alertMarker) { map.removeLayer(alertMarker); alertMarker = null; }
+  const col = alert.type==='fault'?'#ff3535':alert.type==='warn'?'#ffaa00':'#00c8ff';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:${col};
+             box-shadow:0 0 14px ${col},0 0 30px ${col}55;
+             border:2px solid white;animation:n1blink .8s step-end infinite"></div>`,
+    iconSize:[16,16], iconAnchor:[8,8],
+  });
+  alertMarker = L.marker(alert.mapLatLon, {icon})
+    .bindTooltip(`<b style="color:${col}">${alert[lang]||alert.es}</b><br><span style="color:var(--muted)">${alert.loc}</span>`, {permanent:false})
+    .addTo(map);
+  setTimeout(() => { if(alertMarker){map.removeLayer(alertMarker);alertMarker=null;} }, 8000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FEATURE 5 — EXPORT REPORT
+// ═══════════════════════════════════════════════════════════════════════
+function exportReport() {
+  const now = new Date().toLocaleString('es-ES');
+  const es = lang === 'es';
+
+  const faults  = liveAlerts.filter(e=>e.a.type==='fault');
+  const warns   = liveAlerts.filter(e=>e.a.type==='warn');
+  const infos   = liveAlerts.filter(e=>e.a.type==='info');
+
+  const warnRegions = Object.entries(ccaaData)
+    .filter(([,d])=>d.status==='warn').map(([,d])=>d.name);
+  const faultRegions = Object.entries(ccaaData)
+    .filter(([,d])=>d.status==='fault').map(([,d])=>d.name);
+  const avgLoad = Math.round(
+    Object.values(ccaaData).reduce((s,d)=>s+d.load,0)/Object.values(ccaaData).length
+  );
+
+  const sep = '─'.repeat(60);
+  const report = [
+    '╔' + '═'.repeat(58) + '╗',
+    '║' + '  ENERGY EYE — INFORME DE ESTADO DE LA RED'.padEnd(58) + '║',
+    '║' + `  Red Eléctrica España · ${now}`.padEnd(58) + '║',
+    '╚' + '═'.repeat(58) + '╝',
+    '',
+    es ? '▌ RESUMEN EJECUTIVO' : '▌ EXECUTIVE SUMMARY',
+    sep,
+    (es?'Demanda total:':'Total demand:')        + `         ${demand.toLocaleString()} MW`,
+    (es?'Generación renovable:':'Renewable generation:') + `    ${ren}%`,
+    (es?'Frecuencia de red:':'Grid frequency:')  + `       ${freq} Hz`,
+    (es?'Carga media del sistema:':'Avg system load:')    + `     ${avgLoad}%`,
+    '',
+    es ? '▌ ESTADO OPERACIONAL' : '▌ OPERATIONAL STATUS',
+    sep,
+    (es?'Regiones en alerta:':'Regions in warning:')     + `  ${warnRegions.join(', ')||'—'}`,
+    (es?'Regiones en fallo:':'Regions in fault:')        + `   ${faultRegions.join(', ')||'—'}`,
+    '',
+    es ? '▌ ALERTAS ACTIVAS' : '▌ ACTIVE ALERTS',
+    sep,
+    ...(faults.length ? [
+      (es?'  FALLOS CRÍTICOS:':'  CRITICAL FAULTS:'),
+      ...faults.map(e => `  [${e.a.priority}] ${e.a[lang]||e.a.es}\n       📍 ${e.a.loc} · ${e.time}`)
+    ] : [`  ${es?'Sin fallos críticos activos':'No critical faults active'}`]),
+    '',
+    ...(warns.length ? [
+      (es?'  ALERTAS:':'  WARNINGS:'),
+      ...warns.map(e => `  [${e.a.priority}] ${e.a[lang]||e.a.es}\n       📍 ${e.a.loc} · ${e.time}`)
+    ] : []),
+    '',
+    es ? '▌ REGIONES — CARGA >' : '▌ REGIONS — LOAD >',
+    sep,
+    ...Object.entries(ccaaData)
+      .filter(([,d])=>d.load>=70)
+      .sort(([,a],[,b])=>b.load-a.load)
+      .map(([,d])=>`  ${d.name.padEnd(25)} ${d.load}%  ${d.status==='fault'?'⚠ FAULT':d.status==='warn'?'▲ WARN':'✓ OK'}`),
+    '',
+    sep,
+    es ? `Generado por Energy Eye AI · ${now}` : `Generated by Energy Eye AI · ${now}`,
+    es ? 'Datos simulados — solo para demostración' : 'Simulated data — for demonstration only',
+  ].join('\n');
+
+  // Download as .txt
+  const blob = new Blob([report], {type:'text/plain;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `energy-eye-report-${new Date().toISOString().slice(0,16).replace('T','-')}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 
 // ─── INIT ───
 document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
