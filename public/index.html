@@ -103,7 +103,9 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .rd-lbl{font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:1px}
 .rd-bw{background:rgba(128,128,128,.12);border-radius:2px;height:4px;margin-top:4px}
 .rd-bf{height:100%;border-radius:2px;transition:width 1s ease}
-.sub-list{overflow-y:auto;flex:1}
+.side-scroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
+.sub-list{overflow-y:visible}
+.side-ttl-sub{flex-shrink:0}
 .sub-list::-webkit-scrollbar{width:3px}
 .sub-list::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
 .sub-row{display:grid;grid-template-columns:58px 1fr 44px 38px;align-items:center;gap:4px;padding:5px 10px;border-bottom:1px solid rgba(128,128,128,.1);font-family:var(--mono);font-size:.62rem;transition:background .15s}
@@ -261,6 +263,10 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .news-feed{width:320px;flex-shrink:0;overflow-y:auto;background:var(--bg)}
 .news-feed::-webkit-scrollbar{width:3px}
 .news-feed::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.news-right{flex:1;display:flex;flex-direction:column;overflow:hidden;gap:1px;background:var(--bdr)}
+.news-map-wrap{height:220px;flex-shrink:0;position:relative;background:var(--bg)}
+#news-map{width:100%;height:100%}
+.news-map-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.6rem;color:var(--muted);pointer-events:none;text-align:center;padding:8px}
 .news-detail{flex:1;overflow-y:auto;background:var(--bg)}
 .news-detail::-webkit-scrollbar{width:3px}
 .news-detail-empty{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
@@ -379,23 +385,30 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
       <!-- SIDE PANEL -->
       <div class="map-side" id="map-side">
-        <div class="side-ttl" id="side-ttl"><span id="lbl-select">Selecciona una región</span><button class="side-close" onclick="closeSidePanel()" title="Cerrar">✕</button></div>
-        <div class="rd" id="region-detail"></div>
-        <div class="side-ttl"><span id="lbl-subtable">Subestaciones</span></div>
-        <div class="sub-list" id="sub-list">
-          <div style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px" id="sub-hint">
-            Haz clic en una región<br>para ver sus datos
+        <!-- Fixed header with close button -->
+        <div class="side-ttl" id="side-ttl" style="flex-shrink:0"><span id="lbl-select">Selecciona una región</span><button class="side-close" onclick="closeSidePanel()" title="Cerrar">✕</button></div>
+        <!-- Scrollable content area -->
+        <div class="side-scroll" id="side-scroll">
+          <div class="rd" id="region-detail"></div>
+          <div class="side-ttl side-ttl-sub" id="side-subtable-hdr"><span id="lbl-subtable">Subestaciones</span></div>
+          <div class="sub-list" id="sub-list">
+            <div style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px" id="sub-hint">
+              Haz clic en una región<br>para ver sus datos
+            </div>
+          </div>
+          <!-- Related alerts -->
+          <div id="panel-alerts-section" style="display:none">
+            <div class="side-ttl"><span id="lbl-panel-alerts">Alertas Relacionadas</span></div>
+            <div id="panel-alerts-list"></div>
           </div>
         </div>
-        <!-- Related alerts -->
-        <div id="panel-alerts-section" style="display:none">
-          <div class="side-ttl"><span id="lbl-panel-alerts">Alertas Relacionadas</span></div>
-          <div id="panel-alerts-list"></div>
-        </div>
-        <!-- Alert detail inline -->
-        <div id="panel-alert-detail" style="display:none">
-          <span class="panel-al-back" onclick="closePanelAlertDetail()">← <span id="lbl-panel-back">Volver</span></span>
-          <div id="panel-alert-detail-body"></div>
+        <!-- Alert detail — separate scrollable pane, fixed back button at top -->
+        <div id="panel-alert-detail" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+          <div style="flex-shrink:0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;padding:4px 8px">
+            <span class="panel-al-back" onclick="closePanelAlertDetail()">← <span id="lbl-panel-back">Volver</span></span>
+            <button class="side-close" onclick="closeSidePanel()" title="Cerrar panel">✕</button>
+          </div>
+          <div id="panel-alert-detail-body" style="overflow-y:auto;flex:1"></div>
         </div>
 
         <!-- Generation mix donut -->
@@ -452,11 +465,17 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       </div>
       <div class="news-body">
         <div class="news-feed" id="news-feed"></div>
-        <div class="news-detail" id="news-detail">
-          <div class="news-detail-empty" id="news-detail-empty">
-            <span id="lbl-news-select">Selecciona un artículo para leer</span>
+        <div class="news-right">
+          <div class="news-map-wrap" id="news-map-wrap">
+            <div id="news-map"></div>
+            <div class="news-map-hint" id="news-map-hint">Selecciona un artículo para ver la ubicación</div>
           </div>
-          <div id="news-detail-body" style="display:none"></div>
+          <div class="news-detail" id="news-detail">
+            <div class="news-detail-empty" id="news-detail-empty">
+              <span id="lbl-news-select">Selecciona un artículo para leer</span>
+            </div>
+            <div id="news-detail-body" style="display:none"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1615,7 +1634,7 @@ async function callAI() {
     } catch(serr) {
       throw new Error('Payload build failed: ' + serr.message);
     }
-    const res  = await fetch('/api/chat', {
+    const res  = await fetch('http://localhost:3001/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body,
     });
@@ -2075,6 +2094,9 @@ function renderPanelAlerts(regionName) {
 }
 
 function showPanelAlertDetail(idx) {
+  // Hide scrollable content, show detail pane
+  const sc = document.getElementById('side-scroll');
+  if (sc) sc.style.display = 'none';
   const entry = liveAlerts[idx];
   if (!entry) return;
   const a = entry.a;
@@ -2084,7 +2106,7 @@ function showPanelAlertDetail(idx) {
   // Hide sub-list + alerts section, show detail
   document.getElementById('panel-alerts-section').style.display = 'none';
   document.getElementById('sub-list').style.display = 'none';
-  document.getElementById('panel-alert-detail').style.display = '';
+  const pad = document.getElementById('panel-alert-detail'); pad.style.display = 'flex'; pad.style.flexDirection = 'column'; pad.style.flex = '1'; pad.style.overflow = 'hidden';
   document.getElementById('lbl-panel-back').textContent = lang==='es'?'Volver':'Back';
 
   document.getElementById('panel-alert-detail-body').innerHTML = `
@@ -2122,6 +2144,8 @@ function showPanelAlertDetail(idx) {
 }
 
 function closePanelAlertDetail() {
+  const sc = document.getElementById('side-scroll');
+  if (sc) sc.style.display = '';
   document.getElementById('panel-alert-detail').style.display = 'none';
   document.getElementById('panel-alerts-section').style.display = '';
   document.getElementById('sub-list').style.display = '';
@@ -2152,114 +2176,133 @@ function toggleChat() {
 }
 
 
-// NEWS TAB DATA + FUNCTIONS
-const newsData = [
-  { id:1, cat:'outage', age:'hace 12 min',
-    es:{ ttl:'Corte en linea L-4421 A Coruna-Ferrol', src:'REE Boletin Operativo',
-      body:'<p>Red Electrica ha confirmado un corte no programado en la linea 400kV L-4421. El equipo de operaciones ha activado protocolo N-1, redirigiendo flujo via L-4109 y L-4215. <strong>12.400 clientes</strong> afectados en zona norte A Coruna. Equipos de inspeccion aerea desplegados. Restablecimiento previsto en 2-4 horas.</p>',
-      impact:'12.400 clientes · Zona norte A Coruna · Duracion estimada 2-4h' },
-    en:{ ttl:'Unscheduled outage on line L-4421 A Coruna-Ferrol', src:'REE Operational Bulletin',
-      body:'<p>Red Electrica has confirmed an unscheduled outage on 400kV line L-4421. The operations team activated the N-1 contingency protocol, rerouting flow via L-4109 and L-4215. <strong>12,400 customers</strong> affected in north A Coruna. Aerial inspection teams deployed. Restoration expected in 2-4 hours.</p>',
-      impact:'12,400 customers · North A Coruna zone · Est. duration 2-4h' } },
-  { id:2, cat:'weather', age:'hace 28 min',
-    es:{ ttl:'Alerta naranja: vientos 90 km/h en Galicia y Cantabria', src:'AEMET · Aviso Nivel Naranja',
-      body:'<p>AEMET ha emitido aviso naranja por vientos en Galicia y Cantabria para las proximas 6 horas. Rachas de hasta <strong>90 km/h</strong> en zonas de montana. Puede afectar lineas de alta tension en los corredores A Coruna-Lugo y Santander-Bilbao. REE ha elevado estado de alerta a nivel 2.</p><p>Se recomienda preparar protocolos de desconexion preventiva si vientos superan 80 km/h sostenidos.</p>',
-      impact:'Corredores: A Coruna-Lugo, Santander-Bilbao · Nivel alerta REE: 2' },
-    en:{ ttl:'Orange alert: 90 km/h winds for Galicia and Cantabria', src:'AEMET · Orange Warning',
-      body:'<p>AEMET issued an orange wind warning for Galicia and Cantabria for the next 6 hours. Gusts up to <strong>90 km/h</strong> in mountain areas. May affect high-voltage lines on the A Coruna-Lugo and Santander-Bilbao corridors. REE has raised Control Centre alert to level 2.</p><p>Operators advised to prepare preventive disconnection protocols if sustained winds exceed 80 km/h.</p>',
-      impact:'Corridors: A Coruna-Lugo, Santander-Bilbao · REE alert level: 2' } },
-  { id:3, cat:'market', age:'hace 1h 04min',
-    es:{ ttl:'Precio pool cae a 42 EUR/MWh tras record de generacion eolica', src:'OMIE · Mercado Diario',
-      body:'<p>El precio del mercado diario ha caido a <strong>42,3 EUR/MWh</strong>, nivel mas bajo en 3 semanas, impulsado por generacion eolica que supera los 18.500 MW. Galicia, Castilla y Leon y Aragon concentran la mayor produccion con parques eolicos al 87% de capacidad.</p><p>Los gestores han activado restricciones de curtailment en nodos mas congestionados del norte para mantener estabilidad de frecuencia en 50 +/- 0,1 Hz.</p>',
-      impact:'Curtailment activo: ES11, ES41 · Frecuencia: 50.02 Hz · Excedente: 4.300 MW' },
-    en:{ ttl:'Pool price drops to EUR42/MWh after record wind generation', src:'OMIE · Day-Ahead Market',
-      body:'<p>Day-ahead price has fallen to <strong>EUR42.3/MWh</strong>, lowest in 3 weeks, driven by wind generation exceeding 18,500 MW. Galicia, Castilla y Leon and Aragon account for most output with wind farms at 87% capacity.</p><p>Grid managers have activated curtailment at the most congested northern nodes to maintain frequency stability within 50 +/- 0.1 Hz.</p>',
-      impact:'Curtailment active: ES11, ES41 · Frequency: 50.02 Hz · Surplus: 4,300 MW' } },
-  { id:4, cat:'reg', age:'hace 2h 15min',
-    es:{ ttl:'CNMC publica nueva metodologia para peajes de transporte 2025', src:'CNMC · Circular 2/2024',
-      body:'<p>La CNMC ha publicado la Circular 2/2024 que modifica la retribucion del transporte para 2025-2030. Cambios principales: <strong>incremento del 3,2% en peajes de acceso</strong> a la red 400kV, nueva estructura de incentivos por disponibilidad ligada a SAIDI/SAIFI, y mecanismo de compensacion por congestiones transfronterizas con Francia y Portugal.</p><p>La circular entra en vigor el 1 de enero de 2025.</p>',
-      impact:'Vigencia: 01/01/2025 · Incremento peajes: +3,2% · Plazo adaptacion: 15/12/2024' },
-    en:{ ttl:'CNMC publishes new methodology for 2025 transmission tariffs', src:'CNMC · Circular 2/2024',
-      body:'<p>The CNMC published Circular 2/2024, modifying transmission remuneration for 2025-2030. Key changes: <strong>3.2% increase in access charges</strong> for the 400kV network, new availability incentive structure linked to SAIDI/SAIFI, and a cross-border congestion compensation mechanism with France and Portugal.</p><p>Circular takes effect 1 January 2025.</p>',
-      impact:'Effective: 01/01/2025 · Tariff increase: +3.2% · Adaptation deadline: 15/12/2024' } },
-  { id:5, cat:'outage', age:'hace 3h 42min',
-    es:{ ttl:'Restablecido suministro en Valencia tras fallo en SE-Paterna', src:'Iberdrola Distribucion',
-      body:'<p>Iberdrola informa del restablecimiento completo en Paterna, Mislata y Quart de Poblet tras el fallo en la subestacion SE-Paterna 132/20kV. El incidente afecto a <strong>8.200 clientes</strong> durante 47 minutos. El disyuntor averiado ha sido sustituido y la instalacion ha superado pruebas de reposicion.</p>',
-      impact:'8.200 clientes · Duracion: 47 min · Estado actual: NORMALIZADO' },
-    en:{ ttl:'Supply restored in Valencia after fault at SE-Paterna substation', src:'Iberdrola Distribution',
-      body:'<p>Iberdrola reports full supply restoration in Paterna, Mislata and Quart de Poblet following the fault at SE-Paterna 132/20kV substation. The incident affected <strong>8,200 customers</strong> for a maximum 47 minutes. The faulty breaker has been replaced and installation has passed restoration tests.</p>',
-      impact:'8,200 customers · Duration: 47 min · Current status: NORMALISED' } },
-  { id:6, cat:'market', age:'hace 4h 55min',
-    es:{ ttl:'Espana exporta 1.840 MW a Francia por caida nuclear gala', src:'RTE / REE · Flujos Transfronterizos',
-      body:'<p>Los flujos transfronterizos registran exportacion neta de <strong>1.840 MW</strong> hacia Francia, aprovechando la reduccion temporal de disponibilidad nuclear francesa por mantenimiento de tres reactores. Esta situacion, combinada con el excedente eolico peninsular, genera oportunidad de exportacion que REE gestiona con RTE. Ingresos estimados superiores a 3,2 millones EUR.</p>',
-      impact:'Exportacion neta: 1.840 MW · Capacidad: 8.000 MW · Ingreso est: 3,2 M EUR' },
-    en:{ ttl:'Spain exports 1,840 MW to France amid French nuclear shortfall', src:'RTE / REE · Cross-Border Flows',
-      body:'<p>Cross-border flows record net export of <strong>1,840 MW</strong> to France, capitalising on reduced French nuclear availability due to maintenance of three reactors. Combined with peninsular wind surplus, this creates an export opportunity REE is managing with RTE. Estimated revenues exceed EUR3.2 million.</p>',
-      impact:'Net export: 1,840 MW · Capacity: 8,000 MW · Est. revenue: EUR3.2M' } },
-  { id:7, cat:'reg', age:'hace 6h 18min',
-    es:{ ttl:'Ministerio aprueba 14 parques eolicos marinos en el Atlantico', src:'MITECO · Resolucion DGE',
-      body:'<p>El Ministerio para la Transicion Ecologica ha aprobado 14 parques eolicos marinos en el Atlantico norte con <strong>6.800 MW</strong> y 9.400 millones EUR de inversion. Ubicados en Galicia (4.200 MW), Asturias (1.600 MW) y Cantabria (1.000 MW), con entrada en operacion entre 2027 y 2031. Contribuye al objetivo del 81% de generacion renovable en 2030 del PNIEC.</p>',
-      impact:'Capacidad nueva: 6.800 MW offshore · Inversion: 9.400 M EUR · Entrada: 2027-2031' },
-    en:{ ttl:'Ministry approves 14 offshore wind farms in the Atlantic', src:'MITECO · DGE Resolution',
-      body:'<p>The Ministry for Ecological Transition approved 14 offshore wind farms in the north Atlantic with <strong>6,800 MW</strong> and EUR9.4bn investment. Located in Galicia (4,200 MW), Asturias (1,600 MW) and Cantabria (1,000 MW), with phased commissioning 2027-2031. Contributes to the PNIEC 81% renewable generation target for 2030.</p>',
-      impact:'New capacity: 6,800 MW offshore · Investment: EUR9.4bn · Commissioning: 2027-2031' } },
-  { id:8, cat:'weather', age:'hace 8h 33min',
-    es:{ ttl:'Ola de calor en Andalucia: demanda podria batir record historico', src:'AEMET / REE · Prevision Operativa',
-      body:'<p>Los modelos meteorologicos preveen ola de calor intensa en Andalucia, Extremadura y Murcia durante 4 dias, con temperaturas hasta <strong>44 grados C</strong> en el interior. REE estima demanda que podria superar los 12.800 MW el martes, nuevo record historico. Se ha activado el Plan de Gestion de Demanda de Verano.</p><p>Se recomienda maximizar disponibilidad de grupos de respaldo y revisar estado de transformadores en zonas afectadas.</p>',
-      impact:'Demanda pico estimada: 12.800 MW · Max historico: 12.540 MW · Dia critico: martes' },
-    en:{ ttl:'Heatwave in Andalusia: demand could break historic record', src:'AEMET / REE · Operational Forecast',
-      body:'<p>Weather models forecast intense heatwave in Andalusia, Extremadura and Murcia for 4 days, with temperatures potentially reaching <strong>44 degrees C</strong> inland. REE estimates demand could exceed 12,800 MW next Tuesday, a new historical record. The Summer Demand Management Plan has been activated.</p><p>Operators advised to maximise backup generation availability and review power transformer condition in affected areas.</p>',
-      impact:'Peak demand estimate: 12,800 MW · Historical max: 12,540 MW · Critical day: Tuesday' } },
-];
-
+// NEWS TAB — live from real RSS feeds via /api/news
+let newsArticles = [];
 let newsFilter = 'all';
 let activeNewsId = null;
+let newsMap = null;
+let newsMarkers = [];
+
+async function loadNews(force) {
+  const feed = document.getElementById('news-feed');
+  if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">Cargando noticias...</div>';
+  try {
+    const endpoint = force ? 'http://localhost:3001/api/news/refresh' : 'http://localhost:3001/api/news';
+    const method = force ? 'POST' : 'GET';
+    const r = await fetch(endpoint, { method });
+    const data = await r.json();
+    newsArticles = data.articles || [];
+    renderNewsFeed();
+    renderNewsMapMarkers();
+  } catch(e) {
+    console.error('[news]', e);
+    if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--red);text-align:center">Error cargando noticias</div>';
+  }
+}
+
+function initNewsMap() {
+  if (newsMap) return;
+  const el = document.getElementById('news-map');
+  if (!el || !window.L) return;
+  newsMap = L.map('news-map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(newsMap);
+  // Apply same dark filter as main map
+  if (!document.body.classList.contains('light')) {
+    document.querySelectorAll('#news-map .leaflet-tile').forEach(t => t.style.filter = 'brightness(.28) saturate(.3) hue-rotate(195deg)');
+  }
+  newsMap.setView([40.4, -3.7], 5);
+  setTimeout(() => newsMap.invalidateSize(), 100);
+}
+
+function renderNewsMapMarkers() {
+  if (!newsMap) return;
+  newsMarkers.forEach(m => m.remove());
+  newsMarkers = [];
+  const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
+  const catColors = { outage:'#ff3535', weather:'#00c8ff', market:'#00ff88', reg:'#ffaa00' };
+  filtered.forEach(n => {
+    const col = catColors[n.cat] || '#aaa';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:${col};border:2px solid rgba(0,0,0,.4);box-shadow:0 0 6px ${col}"></div>`,
+      iconSize: [10, 10], iconAnchor: [5, 5]
+    });
+    const m = L.marker([n.lat, n.lon], { icon })
+      .addTo(newsMap)
+      .on('click', () => showNewsDetail(n.id));
+    m.bindTooltip(n.title.slice(0, 50) + (n.title.length > 50 ? '...' : ''), { permanent: false, direction: 'top' });
+    newsMarkers.push(m);
+  });
+}
 
 function renderNewsFeed() {
   const feed = document.getElementById('news-feed');
   if (!feed) return;
-  const filtered = newsFilter === 'all' ? newsData : newsData.filter(n => n.cat === newsFilter);
-  const CL = {outage:lang==='es'?'CORTE':'OUTAGE', weather:lang==='es'?'METEO':'WEATHER', market:lang==='es'?'MERCADO':'MARKET', reg:lang==='es'?'REGULACION':'REGULATION'};
-  feed.innerHTML = filtered.map(n => {
-    const d = n[lang] || n.es;
-    return '<div class="ni'+(n.id===activeNewsId?' active':'')+'" onclick="showNewsDetail('+n.id+')"><div><span class="ni-cat '+n.cat+'">'+CL[n.cat]+'</span></div><div class="ni-ttl">'+d.ttl+'</div><div class="ni-meta">'+d.src+' · '+n.age+'</div></div>';
-  }).join('') || '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">'+(lang==='es'?'Sin articulos':'No articles')+'</div>';
+  const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
+  const CL = { outage:'CORTE', weather:'METEO', market:'MERCADO', reg:'REGULACIÓN' };
+  if (!filtered.length) {
+    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">Sin artículos</div>';
+    return;
+  }
+  feed.innerHTML = filtered.map(n =>
+    '<div class="ni' + (n.id === activeNewsId ? ' active' : '') + '" onclick="showNewsDetail(' + n.id + ')">' +
+    '<div><span class="ni-cat ' + n.cat + '">' + (CL[n.cat] || n.cat.toUpperCase()) + '</span> ' +
+    '<span style="font-family:var(--mono);font-size:.52rem;color:var(--muted)">' + n.locName + '</span></div>' +
+    '<div class="ni-ttl">' + n.title + '</div>' +
+    '<div class="ni-meta">' + n.src + ' · ' + n.age + '</div></div>'
+  ).join('');
 }
 
 function showNewsDetail(id) {
   activeNewsId = id;
-  const n = newsData.find(function(x){return x.id===id;});
+  const n = newsArticles.find(x => x.id === id);
   if (!n) return;
-  const d = n[lang] || n.es;
-  const CL = {outage:lang==='es'?'CORTE':'OUTAGE', weather:lang==='es'?'METEO':'WEATHER', market:lang==='es'?'MERCADO':'MARKET', reg:lang==='es'?'REGULACION':'REGULATION'};
+  const CL = { outage:'CORTE', weather:'METEO', market:'MERCADO', reg:'REGULACIÓN' };
+  
+  // Fly map to location
+  if (newsMap) {
+    newsMap.flyTo([n.lat, n.lon], n.locName === 'España' ? 6 : 9, { duration: 0.8 });
+  }
+  
   document.getElementById('news-detail-empty').style.display = 'none';
   const body = document.getElementById('news-detail-body');
   body.style.display = '';
-  body.innerHTML = '<div class="nd-hdr"><div class="nd-cat"><span class="ni-cat '+n.cat+'">'+CL[n.cat]+'</span></div><div class="nd-ttl">'+d.ttl+'</div><div class="nd-meta"><span>&#x1F4F0; '+d.src+'</span> <span>&#x1F550; '+n.age+'</span></div></div><div class="nd-body">'+d.body+'<div class="nd-impact"><div class="nd-impact-lbl">'+(lang==='es'?'Impacto operativo':'Operational impact')+'</div>'+d.impact+'</div></div>';
+  body.innerHTML =
+    '<div class="nd-hdr">' +
+    '<div class="nd-cat"><span class="ni-cat ' + n.cat + '">' + (CL[n.cat] || n.cat.toUpperCase()) + '</span>' +
+    ' <span style="font-family:var(--mono);font-size:.6rem;color:var(--accent);margin-left:6px">📍 ' + n.locName + '</span></div>' +
+    '<div class="nd-ttl">' + n.title + '</div>' +
+    '<div class="nd-meta">' +
+    '<span>📰 ' + n.src + '</span>' +
+    '<span>🕐 ' + n.age + '</span>' +
+    (n.url ? '<span><a href="' + n.url + '" target="_blank" style="color:var(--accent);text-decoration:none;font-family:var(--mono);font-size:.58rem">↗ Leer artículo completo</a></span>' : '') +
+    '</div></div>' +
+    '<div class="nd-body"><p>' + (n.desc || 'Sin descripción disponible.') + '</p>' +
+    (n.cats && n.cats.length ? '<div style="margin-top:8px">' + n.cats.map(cat => '<span style="font-family:var(--mono);font-size:.52rem;color:var(--muted);padding:1px 6px;border:1px solid var(--bdr);border-radius:2px;margin-right:4px">' + cat + '</span>').join('') + '</div>' : '') +
+    '</div>';
+  
   renderNewsFeed();
 }
 
 function filterNews(cat) {
   newsFilter = cat;
-  document.querySelectorAll('.ncat').forEach(function(b){b.classList.remove('active');});
-  const btn = document.getElementById('ncat-'+cat);
+  document.querySelectorAll('.ncat').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('ncat-' + cat);
   if (btn) btn.classList.add('active');
   activeNewsId = null;
   document.getElementById('news-detail-empty').style.display = '';
   document.getElementById('news-detail-body').style.display = 'none';
   renderNewsFeed();
+  renderNewsMapMarkers();
 }
 
 function refreshNews() {
   const btn = document.getElementById('news-refresh-btn');
   if (!btn) return;
   btn.classList.add('spin');
-  setTimeout(function() {
-    btn.classList.remove('spin');
-    newsData.forEach(function(n){const m=Math.floor(Math.random()*5)+1; n.age=lang==='es'?'hace '+m+' min':m+' min ago';});
-    renderNewsFeed();
-  }, 700);
+  loadNews(true).finally(() => btn.classList.remove('spin'));
 }
+
 
 // ─── INIT ───
 document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
