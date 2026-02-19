@@ -108,6 +108,23 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .sub-list::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
 .sub-row{display:grid;grid-template-columns:58px 1fr 44px 38px;align-items:center;gap:4px;padding:5px 10px;border-bottom:1px solid rgba(128,128,128,.1);font-family:var(--mono);font-size:.62rem;transition:background .15s}
 .sub-row:hover{background:var(--surf2)}
+.sub-row-alert:hover{background:rgba(255,60,60,.06)!important}
+.panel-al{padding:8px 10px;border-left:2px solid var(--muted);margin:3px 6px;border-radius:0 3px 3px 0;background:var(--surf);cursor:pointer;transition:background .15s;animation:slin .25s ease}
+.panel-al:hover{background:var(--surf2)}
+.panel-al.info{border-left-color:var(--accent)}
+.panel-al.warn{border-left-color:var(--amber)}
+.panel-al.fault{border-left-color:var(--red)}
+.panel-al-t{font-family:var(--mono);font-size:.56rem;color:var(--muted);margin-bottom:2px}
+.panel-al-m{font-size:.68rem;line-height:1.35;color:var(--text)}
+.panel-al-loc{font-family:var(--mono);font-size:.56rem;color:var(--accent);margin-top:2px}
+/* Inline alert detail inside side panel */
+.panel-al-detail{background:var(--surf2);border-radius:3px;margin:4px 6px;padding:10px;border:1px solid var(--bdr);animation:slin .2s ease}
+.panel-al-detail .ad-section{padding:6px 0;border-bottom:1px solid var(--bdr)}
+.panel-al-detail .ad-section:last-child{border-bottom:none}
+.panel-al-detail .ad-label{font-family:var(--mono);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.panel-al-detail .ad-value{font-size:.68rem;color:var(--text);line-height:1.4}
+.panel-al-back{font-family:var(--mono);font-size:.58rem;color:var(--muted);cursor:pointer;padding:6px 10px;display:inline-flex;align-items:center;gap:4px;transition:color .15s}
+.panel-al-back:hover{color:var(--accent)}
 .sub-id{color:var(--muted);font-size:.57rem}
 .sub-nm{color:var(--text);font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sbw{background:rgba(128,128,128,.12);border-radius:2px;height:4px}
@@ -303,6 +320,17 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
             Haz clic en una región<br>para ver sus datos
           </div>
         </div>
+        <!-- Related alerts -->
+        <div id="panel-alerts-section" style="display:none">
+          <div class="side-ttl"><span id="lbl-panel-alerts">Alertas Relacionadas</span></div>
+          <div id="panel-alerts-list"></div>
+        </div>
+        <!-- Alert detail inline -->
+        <div id="panel-alert-detail" style="display:none">
+          <span class="panel-al-back" onclick="closePanelAlertDetail()">← <span id="lbl-panel-back">Volver</span></span>
+          <div id="panel-alert-detail-body"></div>
+        </div>
+
         <!-- Generation mix donut -->
         <div id="mix-section" style="display:none">
           <div class="side-ttl"><span id="lbl-genmix">Mix Generación</span></div>
@@ -391,6 +419,7 @@ const T = {
     leg_ok:'Normal <80%', leg_warn:'Alta carga 80–95%', leg_fault:'Fallo / Crítico',
     leg_grid:'Red 400kV', leg_ave:'AVE Alta Velocidad', leg_ap:'Autopistas AP/A',
     alerts_feed:'Feed de Alertas en Tiempo Real',
+    panel_alerts:'Alertas Relacionadas',
     chat_sub:'Conectado · Red Eléctrica España',
     q1:'¿Qué comunidades tienen mayor carga?',
     q2:'Resume los fallos activos de hoy',
@@ -1279,7 +1308,12 @@ function selectProv(id, layer) {
   // Draw generation mix + forecast charts
   drawMixDonut(id);
   drawForecastChart(id);
+  // Show related alerts
+  document.getElementById('panel-alert-detail').style.display = 'none';
+  renderPanelAlerts(ccaaData[id]?.name || '');
   renderSubList([{id:d.name.substring(0,6).toUpperCase(),name:d.name+' Central',load:d.load,status:d.status}]);
+  document.getElementById('panel-alert-detail').style.display = 'none';
+  renderPanelAlerts(d.name);
   showBreadcrumb(parent?parent.name:'', d.name);
   try { map.fitBounds(layer.getBounds(), {padding:[50,50], maxZoom:11}); } catch(_){}
   const msg = lang==='es'
@@ -1289,14 +1323,30 @@ function selectProv(id, layer) {
 }
 
 // ─── RENDER SUB LIST ───
+function findAlertForItem(name) {
+  // Find first liveAlert whose loc contains this name (case-insensitive)
+  const nm = (name||'').toLowerCase();
+  return liveAlerts.findIndex(e => {
+    const loc = (e.a.loc||'').toLowerCase();
+    return loc.includes(nm) || nm.includes(loc.split('(')[0].trim());
+  });
+}
+
 function renderSubList(items) {
   document.getElementById('sub-list').innerHTML = items.length
     ? items.map(s => {
-        const col   = sCol(s.status, s.load);
-        const badge = s.status==='fault' ? `<span class="bdg bfault">${t('s_fault')}</span>`
-          : s.load>=80 ? `<span class="bdg bwarn">${t('s_warn')}</span>`
+        const col       = sCol(s.status, s.load);
+        const isAlert   = s.status==='fault' || s.load>=80;
+        const alertIdx  = isAlert ? findAlertForItem(s.name) : -1;
+        const clickable = alertIdx >= 0;
+        const badge = s.status==='fault'
+          ? `<span class="bdg bfault">${t('s_fault')}${clickable?' ›':''}</span>`
+          : s.load>=80
+          ? `<span class="bdg bwarn">${t('s_warn')}${clickable?' ›':''}</span>`
           : `<span class="bdg bok">${t('s_ok')}</span>`;
-        return `<div class="sub-row">
+        const click = clickable ? `onclick="showPanelAlertDetail(${alertIdx})" style="cursor:pointer"` : '';
+        const hover = clickable ? 'sub-row sub-row-alert' : 'sub-row';
+        return `<div class="${hover}" ${click}>
           <span class="sub-id">${s.id}</span>
           <span class="sub-nm">${s.name}</span>
           <div>
@@ -1892,17 +1942,103 @@ function exportReport() {
 
 
 
+
+// ─── PANEL ALERTS (related alerts in side panel) ──────────────────────────
+function renderPanelAlerts(regionName) {
+  // Match liveAlerts to the selected region by checking loc string
+  const matched = liveAlerts.filter(e => {
+    const loc = (e.a.loc || '').toLowerCase();
+    const nm  = (regionName || '').toLowerCase();
+    // Match on region name OR any province/city name within the region
+    return nm && (loc.includes(nm) || nm.includes(loc.split('(')[0].trim()));
+  });
+
+  const section = document.getElementById('panel-alerts-section');
+  const list    = document.getElementById('panel-alerts-list');
+
+  if (!matched.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  list.innerHTML = matched.map((entry, i) => {
+    const a = entry.a;
+    const col = a.type==='fault'?'var(--red)':a.type==='warn'?'var(--amber)':'var(--accent)';
+    const priority = a.priority ? `<span style="font-family:var(--mono);font-size:.56rem;font-weight:700;color:${col};margin-right:4px">[${a.priority}]</span>` : '';
+    return `<div class="panel-al ${a.type}" onclick="showPanelAlertDetail(${liveAlerts.indexOf(entry)})">
+      <div class="panel-al-t">${entry.time} ${priority}<span style="font-family:var(--mono);font-size:.54rem;color:var(--muted)">${a.code||''}</span></div>
+      <div class="panel-al-m">${a[lang]||a.es}</div>
+      <div class="panel-al-loc">📍 ${a.loc}</div>
+    </div>`;
+  }).join('');
+}
+
+function showPanelAlertDetail(idx) {
+  const entry = liveAlerts[idx];
+  if (!entry) return;
+  const a = entry.a;
+  const col = a.type==='fault'?'var(--red)':a.type==='warn'?'var(--amber)':'var(--accent)';
+  const typeLabel = a.type==='fault'?(lang==='es'?'FALLO':'FAULT'):a.type==='warn'?(lang==='es'?'ALERTA':'WARNING'):'INFO';
+
+  // Hide sub-list + alerts section, show detail
+  document.getElementById('panel-alerts-section').style.display = 'none';
+  document.getElementById('sub-list').style.display = 'none';
+  document.getElementById('panel-alert-detail').style.display = '';
+  document.getElementById('lbl-panel-back').textContent = lang==='es'?'Volver':'Back';
+
+  document.getElementById('panel-alert-detail-body').innerHTML = `
+    <div style="padding:8px 10px;border-bottom:1px solid var(--bdr)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:.7rem;font-weight:700;color:${col}">${typeLabel}</span>
+        <span class="ad-priority ad-${(a.priority||'p4').toLowerCase()}">${a.priority||'P4'}</span>
+        <span style="font-family:var(--mono);font-size:.56rem;color:var(--muted)">${a.code||''}</span>
+      </div>
+      <div style="font-size:.78rem;font-weight:700;color:${col};line-height:1.3;margin-bottom:3px">${a[lang]||a.es}</div>
+      <div style="font-family:var(--mono);font-size:.58rem;color:var(--accent)">📍 ${a.loc}</div>
+    </div>
+    <div class="panel-al-detail">
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Causa':'Cause'}</div>
+        <div class="ad-value">${(a.cause&&(a.cause[lang]||a.cause.es))||'—'}</div>
+      </div>
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Activos afectados':'Affected assets'}</div>
+        <div class="ad-value">${(a.assets&&(a.assets[lang]||a.assets.es))||'—'}</div>
+      </div>
+      ${a.affected?`<div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Impacto':'Impact'}</div>
+        <div class="ad-value">${a.affected[lang]||a.affected.es}</div>
+      </div>`:''}
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Acción requerida':'Action required'}</div>
+        <div class="ad-value" style="color:${col}">${(a.action&&(a.action[lang]||a.action.es))||'—'}</div>
+      </div>
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Resolución estimada':'Estimated resolution'}</div>
+        <div class="ad-value">${(a.eta&&(a.eta[lang]||a.eta.es))||'—'}</div>
+      </div>
+    </div>`;
+}
+
+function closePanelAlertDetail() {
+  document.getElementById('panel-alert-detail').style.display = 'none';
+  document.getElementById('panel-alerts-section').style.display = '';
+  document.getElementById('sub-list').style.display = '';
+}
+
 // ─── PANEL VISIBILITY ──────────────────────────────────────────────────────
 function openSidePanel() {
   document.getElementById('map-side').classList.add('open');
 }
 function closeSidePanel() {
   document.getElementById('map-side').classList.remove('open');
-  // Clear charts & state so fresh on next open
   if (mixChart)      { mixChart.destroy();      mixChart = null; }
   if (forecastChart) { forecastChart.destroy();  forecastChart = null; }
   document.getElementById('mix-section').style.display = 'none';
   document.getElementById('forecast-section').style.display = 'none';
+  document.getElementById('panel-alerts-section').style.display = 'none';
+  document.getElementById('panel-alert-detail').style.display = 'none';
 }
 
 let chatOpen = true;
