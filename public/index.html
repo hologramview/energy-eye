@@ -354,6 +354,18 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 <div class="main">
   <div class="map-area">
 
+    <!-- NEWS toolbar — inside map-area flex column, hidden by default -->
+    <div id="news-toolbar-bar" style="display:none;flex-shrink:0;flex-direction:row;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--bdr);background:var(--surf)">
+      <span class="news-hdr-lbl" id="lbl-news-hdr">Noticias del Sector Energético</span>
+      <div class="news-cats">
+        <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
+        <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
+        <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
+        <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
+        <button class="ncat" onclick="filterNews('reg')" id="ncat-reg">Regulación</button>
+      </div>
+      <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn" title="Actualizar">↻</button>
+    </div>
     <div class="map-body" id="map-body">
       <div class="map-wrap">
         <div id="map"></div>
@@ -389,7 +401,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
         <!-- NEWS DETAIL PANEL — slides in from right -->
         <div id="news-detail-panel" style="display:none;position:absolute;top:0;right:0;bottom:0;width:340px;z-index:600;background:var(--bg);border-left:1px solid var(--bdr);flex-direction:column;overflow:hidden">
           <div style="flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
-            <button class="panel-al-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
+            <button class="panel-al-back" id="lbl-news-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
             <button class="side-close" onclick="closeNewsDetail()">✕</button>
           </div>
           <div id="news-detail-body" style="overflow-y:auto;flex:1;padding:0"></div>
@@ -466,18 +478,6 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
   </div>
 
-    <!-- NEWS overlay toolbar (sits above map-body, controlled by setTab) -->
-    <div id="news-toolbar-bar" style="display:none;flex-shrink:0;flex-direction:row;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--bdr);background:var(--surf)">
-      <span class="news-hdr-lbl" id="lbl-news-hdr">Noticias del Sector Energético</span>
-      <div class="news-cats">
-        <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
-        <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
-        <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
-        <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
-        <button class="ncat" onclick="filterNews('reg')" id="ncat-reg">Regulación</button>
-      </div>
-      <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn" title="Actualizar">↻</button>
-    </div>
 
   <!-- CHAT -->
   <div class="chat-panel" id="chat-panel">
@@ -537,6 +537,16 @@ const T = {
     leg_grid:'Red 400kV', leg_ave:'AVE Alta Velocidad', leg_ap:'Autopistas AP/A',
     alerts_feed:'Feed de Alertas en Tiempo Real',
     panel_alerts:'Alertas Relacionadas',
+    panel_back:'Volver',
+    news_hdr:'Noticias del Sector Energético',
+    news_all:'Todo', news_outage:'Cortes', news_weather:'Meteorología', news_market:'Mercado', news_reg:'Regulación',
+    news_select:'Selecciona un artículo para leer',
+    news_back:'← Volver',
+    news_src:'Fuente', news_time:'Hora', news_loc:'Ubicación', news_read:'↗ Leer artículo completo',
+    news_loading:'Cargando noticias...', news_error:'Error cargando noticias', news_empty:'Sin artículos',
+    cat_outage:'CORTE', cat_weather:'METEO', cat_market:'MERCADO', cat_reg:'REGULACIÓN',
+    faq_title_chat:'Chat', faq_title_faq:'FAQ',
+    faq_cat1:'Red Eléctrica', faq_cat2:'Alertas & Incidencias', faq_cat3:'Mercado & Precios', faq_cat4:'Generación',
     chat_sub:'Conectado · Red Eléctrica España',
     q1:'¿Qué comunidades tienen mayor carga?',
     q2:'Resume los fallos activos de hoy',
@@ -560,6 +570,17 @@ const T = {
     leg_ok:'Normal <80%', leg_warn:'High load 80–95%', leg_fault:'Fault / Critical',
     leg_grid:'400kV Grid', leg_ave:'AVE High Speed Rail', leg_ap:'AP/A Motorways',
     alerts_feed:'Live Alert Feed',
+    panel_alerts:'Related Alerts',
+    panel_back:'Back',
+    news_hdr:'Energy Sector News',
+    news_all:'All', news_outage:'Outages', news_weather:'Weather', news_market:'Market', news_reg:'Regulation',
+    news_select:'Select an article to read',
+    news_back:'← Back',
+    news_src:'Source', news_time:'Time', news_loc:'Location', news_read:'↗ Read full article',
+    news_loading:'Loading news...', news_error:'Error loading news', news_empty:'No articles',
+    cat_outage:'OUTAGE', cat_weather:'WEATHER', cat_market:'MARKET', cat_reg:'REGULATION',
+    faq_title_chat:'Chat', faq_title_faq:'FAQ',
+    faq_cat1:'Electricity Grid', faq_cat2:'Alerts & Incidents', faq_cat3:'Market & Prices', faq_cat4:'Generation',
     chat_sub:'Connected · Spanish Electricity Grid',
     q1:'Which communities have the highest load?',
     q2:'Summarise today\'s active faults',
@@ -590,6 +611,10 @@ function applyLang() {
     'leg-grid':'leg_grid','leg-ave':'leg_ave','leg-ap':'leg_ap',
     'tlbl-nacional':'tab_nacional','tlbl-ccaa':'tab_ccaa','tlbl-prov':'tab_prov',
     'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts','tlbl-news':'tab_news',
+    'lbl-news-hdr':'news_hdr',
+    'lbl-panel-alerts':'panel_alerts','lbl-panel-back':'panel_back',
+    'ncat-all':'news_all','ncat-outage':'news_outage','ncat-weather':'news_weather','ncat-market':'news_market','ncat-reg':'news_reg',
+    'ctab-chat':'faq_title_chat','ctab-faq':'faq_title_faq','lbl-news-back':'news_back',
     'q1':'q1','q2':'q2','q3':'q3','q4':'q4',
     'loading-txt':'loading',
   };
@@ -600,6 +625,8 @@ function applyLang() {
   document.getElementById('chat-inp').placeholder = t('placeholder');
   document.getElementById('welcome-bubble').innerHTML = t('welcome');
   document.getElementById('bc-home').textContent = lang==='es'?'España':'Spain';
+  // Re-render FAQ if currently showing
+  if (document.getElementById('chat-faq').style.display !== 'none') renderFAQ();
   document.getElementById('lang-btn').textContent = lang==='es'?'EN':'ES';
 
   // Re-render alert hint text (in alerts detail panel if nothing selected)
@@ -1353,9 +1380,17 @@ async function setTab(tab) {
     return;
   }
   if (tab === 'noticias') {
-    mapBody.style.display    = 'none';
+    mapBody.style.display    = 'flex';   // SHOW the main map
     alertsView.style.display = 'none';
-        renderNewsFeed();
+    mapLegend.style.display  = 'none';
+    redLegend.style.display  = 'none';
+    document.getElementById('news-toolbar-bar').style.display = 'flex';
+    document.getElementById('news-feed-panel').style.display  = 'flex';
+    setTimeout(() => {
+      map.invalidateSize();
+      if (!newsArticles.length) loadNews(false);
+      else { renderNewsFeed(); renderNewsMapMarkers(); }
+    }, 80);
     return;
   }
   mapBody.style.display    = 'flex';
@@ -1683,38 +1718,67 @@ async function sendMsg() {
   sendAuto(txt);
 }
 
-const FAQ_DATA = [
-  { cat: 'Red Eléctrica', items: [
-    '¿Cuál es la frecuencia actual de la red?',
-    '¿Qué regiones tienen mayor carga ahora?',
-    '¿Cómo está el balance de generación?',
-    '¿Qué porcentaje es renovable hoy?',
-  ]},
-  { cat: 'Alertas & Incidencias', items: [
-    '¿Hay alguna alerta P1 activa?',
-    '¿Cuáles son las incidencias más críticas?',
-    'Muéstrame las alertas de Galicia',
-    '¿Cuándo se resolverá la incidencia en Madrid?',
-  ]},
-  { cat: 'Mercado & Precios', items: [
-    '¿Cuál es el precio pool hoy?',
-    '¿Cuándo es el precio más caro del día?',
-    'Explica la diferencia entre pool y tarifa',
-    '¿Cómo afecta el viento al precio?',
-  ]},
-  { cat: 'Generación', items: [
-    '¿Qué centrales están operando ahora?',
-    '¿Cuánta energía eólica se genera hoy?',
-    '¿Están las nucleares en plena potencia?',
-    'Explica el mix de generación actual',
-  ]},
-];
+const FAQ_DATA = {
+  es: [
+    { catKey:'faq_cat1', items:[
+      '¿Cuál es la frecuencia actual de la red?',
+      '¿Qué regiones tienen mayor carga ahora?',
+      '¿Cómo está el balance de generación?',
+      '¿Qué porcentaje es renovable hoy?',
+    ]},
+    { catKey:'faq_cat2', items:[
+      '¿Hay alguna alerta P1 activa?',
+      '¿Cuáles son las incidencias más críticas?',
+      'Muéstrame las alertas de Galicia',
+      '¿Cuándo se resolverá la incidencia en Madrid?',
+    ]},
+    { catKey:'faq_cat3', items:[
+      '¿Cuál es el precio pool hoy?',
+      '¿Cuándo es el precio más caro del día?',
+      'Explica la diferencia entre pool y tarifa',
+      '¿Cómo afecta el viento al precio?',
+    ]},
+    { catKey:'faq_cat4', items:[
+      '¿Qué centrales están operando ahora?',
+      '¿Cuánta energía eólica se genera hoy?',
+      '¿Están las nucleares en plena potencia?',
+      'Explica el mix de generación actual',
+    ]},
+  ],
+  en: [
+    { catKey:'faq_cat1', items:[
+      'What is the current grid frequency?',
+      'Which regions have the highest load right now?',
+      'What is the current generation balance?',
+      'What percentage is renewable today?',
+    ]},
+    { catKey:'faq_cat2', items:[
+      'Are there any active P1 alerts?',
+      'What are the most critical incidents?',
+      'Show me alerts for Galicia',
+      'When will the Madrid incident be resolved?',
+    ]},
+    { catKey:'faq_cat3', items:[
+      'What is the pool price today?',
+      'When is the most expensive time of day?',
+      'Explain the difference between pool and tariff',
+      'How does wind affect the price?',
+    ]},
+    { catKey:'faq_cat4', items:[
+      'Which power plants are operating now?',
+      'How much wind energy is being generated today?',
+      'Are the nuclear plants at full capacity?',
+      'Explain the current generation mix',
+    ]},
+  ],
+};
 
 function renderFAQ() {
   const el = document.getElementById('chat-faq');
   if (!el) return;
-  el.innerHTML = FAQ_DATA.map(cat =>
-    '<div class="faq-cat">' + cat.cat + '</div>' +
+  const data = FAQ_DATA[lang] || FAQ_DATA.es;
+  el.innerHTML = data.map(cat =>
+    '<div class="faq-cat">' + t(cat.catKey) + '</div>' +
     cat.items.map(q =>
       '<button class="sugg" onclick="sendSugg(this)">' + q + '</button>'
     ).join('')
@@ -2265,7 +2329,7 @@ function closeNewsDetail() {
 
 async function loadNews(force) {
   const feed = document.getElementById('news-feed');
-  if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">Cargando noticias...</div>';
+  if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">' + t('news_loading') + '</div>';
   try {
     const endpoint = force ? 'http://localhost:3001/api/news/refresh' : 'http://localhost:3001/api/news';
     const method = force ? 'POST' : 'GET';
@@ -2276,7 +2340,7 @@ async function loadNews(force) {
     renderNewsMapMarkers();
   } catch(e) {
     console.error('[news]', e);
-    if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--red);text-align:center">Error cargando noticias</div>';
+    if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--red);text-align:center">' + t('news_error') + '</div>';
   }
 }
 
@@ -2304,9 +2368,9 @@ function renderNewsFeed() {
   const feed = document.getElementById('news-feed');
   if (!feed) return;
   const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
-  const CL = { outage:'CORTE', weather:'METEO', market:'MERCADO', reg:'REGULACIÓN' };
+  const CL = { outage:t('cat_outage'), weather:t('cat_weather'), market:t('cat_market'), reg:t('cat_reg') };
   if (!filtered.length) {
-    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">Sin artículos</div>';
+    feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">' + t('news_empty') + '</div>';
     return;
   }
   feed.innerHTML = filtered.map(n =>
@@ -2322,7 +2386,7 @@ function showNewsDetail(id) {
   activeNewsId = id;
   const n = newsArticles.find(x => x.id === id);
   if (!n) return;
-  const CL = { outage:'CORTE', weather:'METEO', market:'MERCADO', reg:'REGULACIÓN' };
+  const CL = { outage:t('cat_outage'), weather:t('cat_weather'), market:t('cat_market'), reg:t('cat_reg') };
 
   // Fly MAIN map to location
   if (map) map.flyTo([n.lat, n.lon], n.locName === 'España' ? 6 : 9, { duration: 0.8 });
@@ -2341,7 +2405,7 @@ function showNewsDetail(id) {
     '<div class="nd-meta">' +
     '<span>📰 ' + n.src + '</span>' +
     '<span>🕐 ' + n.age + '</span>' +
-    (n.url ? '<span><a href="' + n.url + '" target="_blank" style="color:var(--accent);text-decoration:none;font-family:var(--mono);font-size:.58rem">↗ Leer artículo completo</a></span>' : '') +
+    (n.url ? '<span><a href="' + n.url + '" target="_blank" style="color:var(--accent);text-decoration:none;font-family:var(--mono);font-size:.58rem">' + t('news_read') + '</a></span>' : '') +
     '</div></div>' +
     '<div class="nd-body"><p>' + (n.desc || 'Sin descripción disponible.') + '</p>' +
     (n.cats && n.cats.length ? '<div style="margin-top:8px">' + n.cats.map(cat => '<span style="font-family:var(--mono);font-size:.52rem;color:var(--muted);padding:1px 6px;border:1px solid var(--bdr);border-radius:2px;margin-right:4px">' + cat + '</span>').join('') + '</div>' : '') +
