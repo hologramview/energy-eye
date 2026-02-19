@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Energy Eye — AI Grid Operations</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#040d18;--surf:#071525;--surf2:#0b1e35;--bdr:#0f2d4a;
+  --accent:#00c8ff;--green:#00ff88;--amber:#ffaa00;--red:#ff3535;
+  --text:#cce0f5;--muted:#3d6080;--shadow:rgba(0,0,0,.5);
+  --mono:'Share Tech Mono',monospace;
+  --head:'Barlow Condensed',sans-serif;
+  --body:'Barlow',sans-serif;
+}
+body.light{
+  --bg:#f0f4f8;--surf:#ffffff;--surf2:#e4edf8;--bdr:#c0d0e0;
+  --accent:#0077cc;--green:#00995c;--amber:#bb7700;--red:#cc2222;
+  --text:#1a2a3a;--muted:#5a7a9a;--shadow:rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--body);display:flex;flex-direction:column;transition:background .25s,color .25s}
+body:not(.light)::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;gap:10px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo svg{width:30px;height:30px;flex-shrink:0}
+.logo h1{font-family:var(--head);font-size:1.3rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--accent)}
+.logo p{font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:-2px}
+.hkpis{display:flex;gap:18px}
+.hkpi-val{font-family:var(--mono);font-size:.9rem}
+.hkpi-lbl{font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.pill{font-family:var(--mono);font-size:.62rem;padding:4px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
+.pill:hover{border-color:var(--accent);color:var(--accent)}
+.pill.live{background:rgba(0,255,136,.06);border-color:var(--green);color:var(--green);cursor:default;animation:blink 2s step-end infinite}
+@keyframes blink{50%{border-color:transparent;opacity:.6}}
+.clock{font-family:var(--mono);font-size:.9rem;color:var(--accent);letter-spacing:2px;min-width:68px}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--surf);overflow-x:auto}
+.tabs::-webkit-scrollbar{height:0}
+.tab{font-family:var(--head);font-size:.74rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:9px 14px;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tbadge{font-family:var(--mono);font-size:.57rem;background:var(--accent);color:var(--bg);border-radius:10px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+.tbadge.warn{background:var(--amber)}
+
+/* BREADCRUMB */
+.breadcrumb{display:flex;align-items:center;gap:6px;padding:5px 14px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0;font-family:var(--mono);font-size:.62rem;min-height:30px}
+.bc-btn{background:none;border:none;cursor:pointer;color:var(--muted);font-family:var(--mono);font-size:.62rem;padding:0;transition:color .15s}
+.bc-btn:hover{color:var(--accent)}
+.bc-cur{color:var(--accent)}
+.bc-sep{color:var(--bdr);margin:0 2px}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden;gap:1px;background:var(--bdr)}
+.map-area{display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--bg)}
+
+/* MAP */
+.map-body{display:flex;flex:1;overflow:hidden;gap:1px;background:var(--bdr)}
+.map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+
+/* LEAFLET */
+body:not(.light) .leaflet-tile{filter:brightness(.28) saturate(.3) hue-rotate(195deg)}
+body.light .leaflet-tile{filter:none}
+body.light .leaflet-container{background:#a8c8e8!important}
+.leaflet-container{background:var(--bg)!important}
+.leaflet-control-attribution{background:rgba(4,13,24,.7)!important;color:var(--muted)!important;font-size:.5rem!important}
+body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!important}
+.leaflet-control-zoom a{background:var(--surf)!important;color:var(--accent)!important;border-color:var(--bdr)!important}
+.leaflet-control-zoom a:hover{background:var(--surf2)!important}
+/* Tooltip */
+.leaflet-tooltip{background:var(--surf)!important;border:1px solid var(--bdr)!important;color:var(--text)!important;font-family:var(--mono)!important;font-size:.68rem!important;border-radius:3px!important;box-shadow:0 2px 10px var(--shadow)!important;padding:4px 8px!important}
+.leaflet-tooltip-top:before,.leaflet-tooltip-bottom:before,.leaflet-tooltip-left:before,.leaflet-tooltip-right:before{border-top-color:var(--bdr)!important;border-bottom-color:var(--bdr)!important}
+
+/* MAP LEGEND */
+.map-legend{position:absolute;bottom:36px;left:10px;background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:8px 12px;z-index:500;box-shadow:0 2px 10px var(--shadow)}
+.leg-r{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-bottom:4px}
+.leg-r:last-child{margin-bottom:0}
+.leg-d{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.leg-line{width:20px;height:3px;flex-shrink:0;border-radius:2px}
+
+/* SIDE PANEL */
+.map-side{width:238px;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.side-ttl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.side-ttl::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.rd{padding:10px 12px;display:none;flex-direction:column;gap:8px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.rd.show{display:flex}
+.rd-name{font-family:var(--head);font-size:.95rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
+.rd-cap{font-size:.65rem;color:var(--muted);letter-spacing:1px}
+.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:2px}
+.rd-stat{background:var(--surf2);border:1px solid var(--bdr);border-radius:3px;padding:6px 8px}
+.rd-val{font-family:var(--mono);font-size:.9rem}
+.rd-lbl{font-size:.54rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:1px}
+.rd-bw{background:rgba(128,128,128,.12);border-radius:2px;height:4px;margin-top:4px}
+.rd-bf{height:100%;border-radius:2px;transition:width 1s ease}
+.sub-list{overflow-y:auto;flex:1}
+.sub-list::-webkit-scrollbar{width:3px}
+.sub-list::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.sub-row{display:grid;grid-template-columns:58px 1fr 44px 38px;align-items:center;gap:4px;padding:5px 10px;border-bottom:1px solid rgba(128,128,128,.1);font-family:var(--mono);font-size:.62rem;transition:background .15s}
+.sub-row:hover{background:var(--surf2)}
+.sub-id{color:var(--muted);font-size:.57rem}
+.sub-nm{color:var(--text);font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbw{background:rgba(128,128,128,.12);border-radius:2px;height:4px}
+.sbf{height:100%;border-radius:2px}
+.spct{text-align:right;font-size:.6rem}
+.bdg{font-size:.55rem;text-align:center;border-radius:2px;padding:1px 3px}
+.bok{color:var(--green)}.bwarn{color:var(--amber)}.bfault{color:var(--red);animation:blink .8s step-end infinite}
+
+/* ALERTS */
+.alerts-view{display:none;flex:1;flex-direction:column;overflow:hidden}
+.alerts-body{display:flex;flex:1;overflow:hidden;gap:1px;background:var(--bdr)}
+.alerts-col{display:flex;flex-direction:column;flex:1;overflow:hidden;background:var(--bg)}
+.alerts-hdr{padding:10px 16px;border-bottom:1px solid var(--bdr);font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0}
+.alert-feed{overflow-y:auto;flex:1;padding:4px 6px}
+.alert-feed::-webkit-scrollbar{width:3px}
+.alert-feed::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.al{padding:8px 12px;border-left:2px solid var(--muted);margin:3px 4px;border-radius:0 3px 3px 0;background:var(--surf);animation:slin .3s ease;cursor:pointer;transition:background .15s}
+.al:hover{background:var(--surf2)}
+.al.selected{background:var(--surf2);outline:1px solid var(--bdr)}
+@keyframes slin{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+.al.info{border-color:var(--accent)}.al.warn{border-color:var(--amber)}.al.fault{border-color:var(--red)}
+.al-t{font-family:var(--mono);font-size:.58rem;color:var(--muted)}
+.al-m{font-size:.72rem;color:var(--text);line-height:1.35;margin-top:2px}
+.al-l{font-family:var(--mono);font-size:.6rem;color:var(--accent);margin-top:1px}
+.alert-detail-panel{width:280px;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;border-left:1px solid var(--bdr)}
+.ad-section{padding:10px 12px;border-bottom:1px solid var(--bdr)}
+.ad-label{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.ad-value{font-size:.72rem;color:var(--text);line-height:1.4}
+.ad-code{font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.ad-priority{font-family:var(--mono);font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:2px;display:inline-block}
+.ad-p1{background:rgba(255,53,53,.15);color:var(--red);border:1px solid var(--red)}
+.ad-p2{background:rgba(255,170,0,.12);color:var(--amber);border:1px solid var(--amber)}
+.ad-p3{background:rgba(0,200,255,.1);color:var(--accent);border:1px solid var(--accent)}
+.ad-p4{background:rgba(0,255,136,.08);color:var(--green);border:1px solid var(--green)}
+.ad-scroll{overflow-y:auto;flex:1}
+.ad-scroll::-webkit-scrollbar{width:3px}
+.ad-scroll::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+
+/* LOADING */
+.loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(4,13,24,.85);z-index:600;flex-direction:column;gap:10px;font-family:var(--mono);font-size:.75rem;color:var(--accent);letter-spacing:2px}
+.loading-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:ldot 1.2s ease-in-out infinite}
+.loading-dot:nth-child(2){animation-delay:.2s}
+.loading-dot:nth-child(3){animation-delay:.4s}
+@keyframes ldot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.loading-dots{display:flex;gap:6px}
+
+/* CHAT */
+.chat-panel{width:305px;display:flex;flex-direction:column;background:var(--bg)}
+.chat-hdr{padding:11px 15px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0}
+.chat-ttl{font-family:var(--head);font-size:.88rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px}
+.chat-ttl::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.5s step-end infinite}
+.chat-sub{font-size:.62rem;color:var(--muted);letter-spacing:1px;margin-top:2px}
+.chat-msgs{flex:1;overflow-y:auto;padding:11px;display:flex;flex-direction:column;gap:10px}
+.chat-msgs::-webkit-scrollbar{width:3px}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.msg{display:flex;flex-direction:column;gap:3px;animation:slin .3s ease}
+.msg-role{font-family:var(--mono);font-size:.56rem;letter-spacing:2px;text-transform:uppercase}
+.msg.user .msg-role{color:var(--accent);text-align:right}
+.msg.ai   .msg-role{color:var(--green)}
+.bubble{padding:9px 12px;border-radius:5px;font-size:.76rem;line-height:1.55;max-width:96%}
+.msg.user .bubble{background:rgba(0,150,220,.07);border:1px solid rgba(0,150,220,.18);align-self:flex-end}
+.msg.ai   .bubble{background:var(--surf);border:1px solid var(--bdr);align-self:flex-start}
+.msg.ai .bubble.typing::after{content:'▋';animation:blink .7s step-end infinite;color:var(--green)}
+.chat-sugg{padding:0 11px 8px;display:flex;flex-direction:column;gap:4px}
+.sugg{background:var(--surf);border:1px solid var(--bdr);border-radius:3px;padding:6px 10px;font-size:.7rem;color:var(--muted);cursor:pointer;text-align:left;transition:all .15s;font-family:var(--body)}
+.sugg:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,150,220,.04)}
+.chat-inp-wrap{padding:9px 11px;border-top:1px solid var(--bdr);background:var(--surf);display:flex;gap:7px;flex-shrink:0}
+.chat-inp{flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;padding:7px 10px;color:var(--text);font-family:var(--body);font-size:.76rem;resize:none;outline:none;min-height:34px;max-height:80px;transition:border-color .2s}
+.chat-inp:focus{border-color:var(--accent)}
+.chat-inp::placeholder{color:var(--muted)}
+.send-btn{background:var(--accent);color:var(--bg);border:none;border-radius:4px;width:34px;height:34px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.send-btn:hover{filter:brightness(1.15);transform:scale(1.05)}
+.send-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none">
+      <ellipse cx="16" cy="16" rx="14" ry="9" stroke="var(--accent)" stroke-width="1.5"/>
+      <circle cx="16" cy="16" r="5" fill="var(--accent)" opacity=".9"/>
+      <circle cx="16" cy="16" r="2.5" fill="var(--bg)"/>
+      <circle cx="18" cy="14" r="1" fill="#fff" opacity=".6"/>
+      <ellipse cx="16" cy="16" rx="14" ry="9" stroke="var(--accent)" stroke-width="1.5" opacity=".2">
+        <animate attributeName="rx" values="14;17;14" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="ry" values="9;12;9" dur="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values=".2;0;.2" dur="3s" repeatCount="indefinite"/>
+      </ellipse>
+    </svg>
+    <div><h1>Energy Eye</h1><p id="lbl-subtitle">AI Grid Operations Assistant</p></div>
+  </div>
+  <div class="hkpis">
+    <div><div class="hkpi-val" id="h-demand">28,450 <span style="font-size:.68rem;color:var(--muted)">MW</span></div><div class="hkpi-lbl" id="lbl-demand">Demanda</div></div>
+    <div><div class="hkpi-val" id="h-ren" style="color:var(--green)">68<span style="font-size:.68rem;color:var(--muted)">%</span></div><div class="hkpi-lbl" id="lbl-ren">Renovable</div></div>
+    <div><div class="hkpi-val" id="h-freq">50.01<span style="font-size:.68rem;color:var(--muted)">Hz</span></div><div class="hkpi-lbl" id="lbl-freq">Frecuencia</div></div>
+    <div><div class="hkpi-val" id="h-alerts" style="color:var(--amber)">5</div><div class="hkpi-lbl" id="lbl-alerts">Alertas</div></div>
+  </div>
+  <div class="hdr-right">
+    <button class="pill" id="lang-btn" onclick="toggleLang()">EN</button>
+    <button class="pill" id="theme-btn" onclick="toggleTheme()">☀</button>
+    <span class="pill live">● LIVE</span>
+    <span class="clock" id="clock">00:00:00</span>
+  </div>
+</header>
+
+<div class="tabs" id="tab-bar">
+  <button class="tab" data-tab="nacional"    onclick="setTab('nacional')"   ><span id="tlbl-nacional">España Nacional</span></button>
+  <button class="tab" data-tab="comunidades" onclick="setTab('comunidades')"><span id="tlbl-ccaa">Comunidades Autónomas</span> <span class="tbadge">17</span></button>
+  <button class="tab" data-tab="provincias"  onclick="setTab('provincias')" ><span id="tlbl-prov">Provincias</span> <span class="tbadge">50</span></button>
+  <button class="tab" data-tab="red"         onclick="setTab('red')"        ><span id="tlbl-red">Red de Transporte</span></button>
+  <button class="tab" data-tab="alertas"     onclick="setTab('alertas')"    ><span id="tlbl-alerts">Alertas</span> <span class="tbadge warn" id="tc-alt">5</span></button>
+</div>
+
+<div class="breadcrumb" id="breadcrumb">
+  <button class="bc-btn" onclick="resetView()" id="bc-home">España</button>
+  <span class="bc-sep bc-s1" style="display:none">›</span>
+  <button class="bc-btn bc-s1" id="bc-ccaa" style="display:none" onclick="resetToRegion()"></button>
+  <span class="bc-sep bc-s2" style="display:none">›</span>
+  <span class="bc-cur bc-s2" id="bc-prov" style="display:none"></span>
+</div>
+
+<div class="main">
+  <div class="map-area">
+
+    <div class="map-body" id="map-body">
+      <div class="map-wrap">
+        <div id="map"></div>
+
+        <!-- Loading overlay -->
+        <div class="loading" id="loading" style="display:none">
+          <div class="loading-dots">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+          </div>
+          <span id="loading-txt">Cargando mapa...</span>
+        </div>
+
+        <!-- Legend -->
+        <div class="map-legend" id="map-legend">
+          <div class="leg-r"><div class="leg-d" style="background:var(--green)"></div><span id="leg-ok">Normal &lt;80%</span></div>
+          <div class="leg-r"><div class="leg-d" style="background:var(--amber)"></div><span id="leg-warn">Alta carga 80–95%</span></div>
+          <div class="leg-r"><div class="leg-d" style="background:var(--red)"></div><span id="leg-fault">Fallo / Crítico</span></div>
+        </div>
+
+        <!-- Transport legend (hidden by default) -->
+        <div class="map-legend" id="red-legend" style="display:none">
+          <div class="leg-r"><div class="leg-line" style="background:#00c8ff"></div><span id="leg-grid">Red 400kV</span></div>
+          <div class="leg-r"><div class="leg-line" style="background:#ff3535;height:2px;border-top:1px dashed #ff3535;background:none;border-bottom:none"></div><span id="leg-ave">AVE Alta Velocidad</span></div>
+          <div class="leg-r"><div class="leg-line" style="background:#ffaa00"></div><span id="leg-ap">Autopistas AP/A</span></div>
+        </div>
+      </div>
+
+      <!-- SIDE PANEL -->
+      <div class="map-side">
+        <div class="side-ttl" id="side-ttl"><span id="lbl-select">Selecciona una región</span></div>
+        <div class="rd" id="region-detail"></div>
+        <div class="side-ttl"><span id="lbl-subtable">Subestaciones</span></div>
+        <div class="sub-list" id="sub-list">
+          <div style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px" id="sub-hint">
+            Haz clic en una región<br>para ver sus datos
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="alerts-view" id="alerts-view">
+      <div class="alerts-body">
+        <div class="alerts-col">
+          <div class="alerts-hdr" id="lbl-alerts-feed">Feed de Alertas en Tiempo Real</div>
+          <div class="alert-feed" id="alert-feed"></div>
+        </div>
+        <div class="alert-detail-panel" id="alert-detail-panel">
+          <div class="side-ttl"><span id="lbl-alert-select">Selecciona una alerta</span></div>
+          <div id="alert-detail-body" style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px">
+            <span id="alert-detail-hint">Haz clic en cualquier alerta<br>para ver los detalles completos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-panel">
+    <div class="chat-hdr">
+      <div class="chat-ttl">AI Assistant</div>
+      <div class="chat-sub" id="lbl-chat-sub">Conectado · Red Eléctrica España</div>
+    </div>
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="msg ai">
+        <div class="msg-role" id="lbl-ai-role">Energy Eye AI</div>
+        <div class="bubble" id="welcome-bubble"></div>
+      </div>
+    </div>
+    <div class="chat-sugg" id="chat-sugg">
+      <button class="sugg" onclick="sendSugg(this)" id="q1"></button>
+      <button class="sugg" onclick="sendSugg(this)" id="q2"></button>
+      <button class="sugg" onclick="sendSugg(this)" id="q3"></button>
+      <button class="sugg" onclick="sendSugg(this)" id="q4"></button>
+    </div>
+    <div class="chat-inp-wrap">
+      <textarea class="chat-inp" id="chat-inp" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+//  I18N
+// ═══════════════════════════════════════════════
+const T = {
+  es: {
+    subtitle:'AI Grid Operations Assistant',
+    demand:'Demanda', ren:'Renovable', freq:'Frecuencia', alerts:'Alertas',
+    tab_nacional:'España Nacional', tab_ccaa:'Comunidades Autónomas',
+    tab_prov:'Provincias', tab_red:'Red de Transporte', tab_alerts:'Alertas',
+    select:'Selecciona una región', subtable:'Subestaciones', provinces:'Provincias',
+    leg_ok:'Normal <80%', leg_warn:'Alta carga 80–95%', leg_fault:'Fallo / Crítico',
+    leg_grid:'Red 400kV', leg_ave:'AVE Alta Velocidad', leg_ap:'Autopistas AP/A',
+    alerts_feed:'Feed de Alertas en Tiempo Real',
+    chat_sub:'Conectado · Red Eléctrica España',
+    q1:'¿Qué comunidades tienen mayor carga?',
+    q2:'Resume los fallos activos de hoy',
+    q3:'¿Por qué hay un pico en Valencia?',
+    q4:'Previsión de demanda para esta noche',
+    welcome:'Buenos días. Monitorizando la red eléctrica española en tiempo real.<br><br>Estado: <strong style="color:var(--green)">Estable</strong> — 28,450 MW demanda, 68% renovable.<br><br>Usa las pestañas para navegar. Haz clic en cualquier región para ver su estado y análisis.',
+    placeholder:'Pregunta sobre la red...',
+    loading:'Cargando mapa...',
+    op:'Operador', ai:'Energy Eye AI',
+    load:'Carga', gen:'Gen. MW', ren_lbl:'Renovable', status:'Estado', capital:'Capital', community:'Comunidad',
+    s_ok:'NORMAL', s_warn:'ALERTA', s_fault:'FALLO',
+    hint:'Haz clic en una región<br>para ver sus datos',
+    ai_sys:'Eres Energy Eye, asistente IA para operadores de la red eléctrica española. Responde en español de forma concisa y profesional usando los datos en tiempo real proporcionados.',
+  },
+  en: {
+    subtitle:'AI Grid Operations Assistant',
+    demand:'Demand', ren:'Renewable', freq:'Frequency', alerts:'Alerts',
+    tab_nacional:'Spain National', tab_ccaa:'Autonomous Communities',
+    tab_prov:'Provinces', tab_red:'Transport Network', tab_alerts:'Alerts',
+    select:'Select a region', subtable:'Substations', provinces:'Provinces',
+    leg_ok:'Normal <80%', leg_warn:'High load 80–95%', leg_fault:'Fault / Critical',
+    leg_grid:'400kV Grid', leg_ave:'AVE High Speed Rail', leg_ap:'AP/A Motorways',
+    alerts_feed:'Live Alert Feed',
+    chat_sub:'Connected · Spanish Electricity Grid',
+    q1:'Which communities have the highest load?',
+    q2:'Summarise today\'s active faults',
+    q3:'Why is there a peak in Valencia?',
+    q4:'Demand forecast for tonight',
+    welcome:'Good day. Monitoring the Spanish electricity grid in real time.<br><br>Status: <strong style="color:var(--green)">Stable</strong> — 28,450 MW demand, 68% renewable.<br><br>Use the tabs to navigate. Click any region to see its status and AI analysis.',
+    placeholder:'Ask about the grid...',
+    loading:'Loading map...',
+    op:'Operator', ai:'Energy Eye AI',
+    load:'Load', gen:'Gen. MW', ren_lbl:'Renewable', status:'Status', capital:'Capital', community:'Community',
+    s_ok:'NORMAL', s_warn:'ALERT', s_fault:'FAULT',
+    hint:'Click a region<br>to see its data',
+    ai_sys:'You are Energy Eye, an AI assistant for Spanish electricity grid operators. Respond in English concisely and professionally using the live data provided.',
+  }
+};
+
+let lang  = 'es';
+let theme = localStorage.getItem('eeTheme') || 'light';
+const t = k => T[lang][k] || k;
+
+function applyLang() {
+  const ids = {
+    'lbl-subtitle':'subtitle','lbl-demand':'demand','lbl-ren':'ren',
+    'lbl-freq':'freq','lbl-alerts':'alerts','lbl-select':'select',
+    'lbl-subtable':'subtable','lbl-alerts-feed':'alerts_feed',
+    'lbl-chat-sub':'chat_sub','lbl-ai-role':'ai',
+    'leg-ok':'leg_ok','leg-warn':'leg_warn','leg-fault':'leg_fault',
+    'leg-grid':'leg_grid','leg-ave':'leg_ave','leg-ap':'leg_ap',
+    'tlbl-nacional':'tab_nacional','tlbl-ccaa':'tab_ccaa','tlbl-prov':'tab_prov',
+    'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts',
+    'q1':'q1','q2':'q2','q3':'q3','q4':'q4',
+    'loading-txt':'loading',
+  };
+  Object.entries(ids).forEach(([id,key])=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = t(key);
+  });
+  document.getElementById('chat-inp').placeholder = t('placeholder');
+  document.getElementById('welcome-bubble').innerHTML = t('welcome');
+  document.getElementById('bc-home').textContent = lang==='es'?'España':'Spain';
+  document.getElementById('lang-btn').textContent = lang==='es'?'EN':'ES';
+
+  // Re-render alert hint text (in alerts detail panel if nothing selected)
+  const alertHint = document.getElementById('alert-detail-hint');
+  if (alertHint) alertHint.innerHTML = lang==='es'?'Haz clic en cualquier alerta<br>para ver los detalles completos':'Click any alert<br>to see full details';
+  const alertSelect = document.getElementById('lbl-alert-select');
+  if (alertSelect) alertSelect.textContent = lang==='es'?'Selecciona una alerta':'Select an alert';
+
+  // Re-render sub-hint
+  const hint = document.getElementById('sub-hint');
+  if(hint) hint.innerHTML = t('hint');
+
+  // Re-render alert feed (so messages show in new language)
+  if (liveAlerts.length) {
+    renderAlertFeed();
+    // Re-render detail panel if one is selected
+    if (selectedAlertIdx !== null) showAlertDetail(selectedAlertIdx);
+  }
+
+  // Re-render tooltips if layers loaded
+  refreshTooltips();
+
+  // Rebuild transport layer if active (so tooltip labels update language)
+  if (currentTab === 'red' && layers.red) {
+    map.removeLayer(layers.red);
+    layers.red = null;
+    loadRed();
+  }
+}
+
+function toggleLang() {
+  lang = lang==='es'?'en':'es';
+  applyLang();
+}
+function toggleTheme() {
+  theme = theme==='dark'?'light':'dark';
+  document.body.classList.toggle('light', theme==='light');
+  document.getElementById('theme-btn').textContent = theme==='dark'?'☀':'☾';
+  tileLayer.setUrl(theme==='light' ? lightTiles : darkTiles);
+  localStorage.setItem('eeTheme', theme);
+}
+
+// ═══════════════════════════════════════════════
+//  ENERGY DATA  (NUTS codes = guaranteed match)
+// ═══════════════════════════════════════════════
+const ccaaData = {
+  'ES11':{name:'Galicia',             capital:'Santiago de Compostela',load:62,status:'ok',   gen:1800,ren:78},
+  'ES12':{name:'Asturias',            capital:'Oviedo',               load:54,status:'ok',   gen:900, ren:45},
+  'ES13':{name:'Cantabria',           capital:'Santander',            load:48,status:'ok',   gen:520, ren:42},
+  'ES21':{name:'País Vasco',          capital:'Vitoria-Gasteiz',      load:71,status:'ok',   gen:1200,ren:38},
+  'ES22':{name:'Navarra',             capital:'Pamplona',             load:65,status:'ok',   gen:980, ren:82},
+  'ES23':{name:'La Rioja',            capital:'Logroño',              load:58,status:'ok',   gen:310, ren:61},
+  'ES24':{name:'Aragón',              capital:'Zaragoza',             load:69,status:'ok',   gen:2100,ren:74},
+  'ES30':{name:'Madrid',              capital:'Madrid',               load:78,status:'ok',   gen:1100,ren:22},
+  'ES41':{name:'Castilla y León',     capital:'Valladolid',           load:58,status:'ok',   gen:3200,ren:68},
+  'ES42':{name:'Castilla-La Mancha',  capital:'Toledo',               load:55,status:'ok',   gen:2800,ren:71},
+  'ES43':{name:'Extremadura',         capital:'Mérida',               load:44,status:'ok',   gen:1600,ren:85},
+  'ES51':{name:'Cataluña',            capital:'Barcelona',            load:73,status:'ok',   gen:3800,ren:41},
+  'ES52':{name:'C. Valenciana',       capital:'Valencia',             load:87,status:'warn', gen:1900,ren:48},
+  'ES53':{name:'Illes Balears',       capital:'Palma',                load:61,status:'ok',   gen:580, ren:35},
+  'ES61':{name:'Andalucía',           capital:'Sevilla',              load:68,status:'ok',   gen:5200,ren:79},
+  'ES62':{name:'Murcia',              capital:'Murcia',               load:72,status:'ok',   gen:720, ren:62},
+  'ES70':{name:'Canarias',            capital:'Las Palmas',           load:74,status:'ok',   gen:680, ren:44},
+};
+
+const provData = {
+  'ES111':{name:'A Coruña',  load:96,status:'fault',nuts2:'ES11'},
+  'ES112':{name:'Lugo',      load:52,status:'ok',   nuts2:'ES11'},
+  'ES113':{name:'Ourense',   load:48,status:'ok',   nuts2:'ES11'},
+  'ES114':{name:'Pontevedra',load:58,status:'ok',   nuts2:'ES11'},
+  'ES120':{name:'Asturias',  load:54,status:'ok',   nuts2:'ES12'},
+  'ES130':{name:'Cantabria', load:48,status:'ok',   nuts2:'ES13'},
+  'ES211':{name:'Álava',     load:68,status:'ok',   nuts2:'ES21'},
+  'ES212':{name:'Gipuzkoa',  load:72,status:'ok',   nuts2:'ES21'},
+  'ES213':{name:'Bizkaia',   load:74,status:'ok',   nuts2:'ES21'},
+  'ES220':{name:'Navarra',   load:65,status:'ok',   nuts2:'ES22'},
+  'ES230':{name:'La Rioja',  load:58,status:'ok',   nuts2:'ES23'},
+  'ES241':{name:'Huesca',    load:61,status:'ok',   nuts2:'ES24'},
+  'ES242':{name:'Teruel',    load:55,status:'ok',   nuts2:'ES24'},
+  'ES243':{name:'Zaragoza',  load:91,status:'warn', nuts2:'ES24'},
+  'ES300':{name:'Madrid',    load:78,status:'ok',   nuts2:'ES30'},
+  'ES411':{name:'Ávila',     load:42,status:'ok',   nuts2:'ES41'},
+  'ES412':{name:'Burgos',    load:55,status:'ok',   nuts2:'ES41'},
+  'ES413':{name:'León',      load:58,status:'ok',   nuts2:'ES41'},
+  'ES414':{name:'Palencia',  load:48,status:'ok',   nuts2:'ES41'},
+  'ES415':{name:'Salamanca', load:45,status:'ok',   nuts2:'ES41'},
+  'ES416':{name:'Segovia',   load:44,status:'ok',   nuts2:'ES41'},
+  'ES417':{name:'Soria',     load:38,status:'ok',   nuts2:'ES41'},
+  'ES418':{name:'Valladolid',load:62,status:'ok',   nuts2:'ES41'},
+  'ES419':{name:'Zamora',    load:42,status:'ok',   nuts2:'ES41'},
+  'ES421':{name:'Albacete',    load:54,status:'ok', nuts2:'ES42'},
+  'ES422':{name:'Ciudad Real', load:58,status:'ok', nuts2:'ES42'},
+  'ES423':{name:'Cuenca',      load:48,status:'ok', nuts2:'ES42'},
+  'ES424':{name:'Guadalajara', load:52,status:'ok', nuts2:'ES42'},
+  'ES425':{name:'Toledo',      load:60,status:'ok', nuts2:'ES42'},
+  'ES431':{name:'Badajoz',   load:46,status:'ok',   nuts2:'ES43'},
+  'ES432':{name:'Cáceres',   load:42,status:'ok',   nuts2:'ES43'},
+  'ES511':{name:'Barcelona', load:75,status:'ok',   nuts2:'ES51'},
+  'ES512':{name:'Girona',    load:62,status:'ok',   nuts2:'ES51'},
+  'ES513':{name:'Lleida',    load:58,status:'ok',   nuts2:'ES51'},
+  'ES514':{name:'Tarragona', load:66,status:'ok',   nuts2:'ES51'},
+  'ES521':{name:'Alicante',  load:83,status:'warn', nuts2:'ES52'},
+  'ES522':{name:'Castellón', load:78,status:'ok',   nuts2:'ES52'},
+  'ES523':{name:'Valencia',  load:88,status:'warn', nuts2:'ES52'},
+  'ES620':{name:'Murcia',    load:72,status:'ok',   nuts2:'ES62'},
+  'ES611':{name:'Almería',   load:62,status:'ok',   nuts2:'ES61'},
+  'ES612':{name:'Cádiz',     load:65,status:'ok',   nuts2:'ES61'},
+  'ES613':{name:'Córdoba',   load:60,status:'ok',   nuts2:'ES61'},
+  'ES614':{name:'Granada',   load:55,status:'ok',   nuts2:'ES61'},
+  'ES615':{name:'Huelva',    load:52,status:'ok',   nuts2:'ES61'},
+  'ES616':{name:'Jaén',      load:48,status:'ok',   nuts2:'ES61'},
+  'ES617':{name:'Málaga',    load:70,status:'ok',   nuts2:'ES61'},
+  'ES618':{name:'Sevilla',   load:72,status:'ok',   nuts2:'ES61'},
+  'ES530':{name:'Illes Balears',load:61,status:'ok',nuts2:'ES53'},
+  'ES701':{name:'Las Palmas',         load:74,status:'ok',nuts2:'ES70'},
+  'ES702':{name:'Sta. Cruz Tenerife', load:68,status:'ok',nuts2:'ES70'},
+};
+
+const alertsData = [
+  {
+    type:'fault',
+    es:'Relé protección activado — segmento aislado',
+    en:'Protection relay triggered — segment isolated',
+    loc:'A Coruña (ES111)',
+    cause:    {es:'Sobrecorriente detectada en línea L-4421 a las 08:14:32', en:'Overcurrent detected on line L-4421 at 08:14:32'},
+    assets:   {es:'Línea L-4421 (A Coruña – Ferrol), Subestación SE-Ferrol Norte', en:'Line L-4421 (A Coruña – Ferrol), Substation SE-Ferrol Norte'},
+    action:   {es:'Segmento aislado automáticamente. Equipo de campo alertado. Requiere inspección física antes de reenergizar.', en:'Segment isolated automatically. Field team alerted. Physical inspection required before re-energising.'},
+    priority: 'P1',
+    eta:      {es:'2–4 horas', en:'2–4 hours'},
+    affected: {es:'~12,400 clientes potencialmente afectados', en:'~12,400 customers potentially affected'},
+    code:     'FLT-2024-0891',
+  },
+  {
+    type:'warn',
+    es:'Carga elevada — límite térmico próximo',
+    en:'High load — approaching thermal limit',
+    loc:'Zaragoza (ES243)',
+    cause:    {es:'Combinación de alta demanda industrial y temperatura ambiente 38°C', en:'Combination of high industrial demand and ambient temperature 38°C'},
+    assets:   {es:'Transformador TR-ZGZ-2 (250 MVA), Subestación SE-Zaragoza Sur', en:'Transformer TR-ZGZ-2 (250 MVA), Substation SE-Zaragoza Sur'},
+    action:   {es:'Monitorización continua activada. Preparar desvío de carga a SE-ZGZ-Norte si supera 92%.', en:'Continuous monitoring activated. Prepare load transfer to SE-ZGZ-Norte if exceeding 92%.'},
+    priority: 'P2',
+    eta:      {es:'Resolución esperada tras reducción de temperatura nocturna', en:'Resolution expected after overnight temperature drop'},
+    affected: {es:'Carga industrial en polígono Sur Ebro', en:'Industrial load in Sur Ebro industrial park'},
+    code:     'WRN-2024-1134',
+  },
+  {
+    type:'warn',
+    es:'Desviación de tensión +2.1% sobre nominal',
+    en:'Voltage deviation +2.1% above nominal',
+    loc:'Valencia (ES523)',
+    cause:    {es:'Generación solar fotovoltaica excedentaria en horas centrales del día', en:'Excess solar PV generation during midday hours'},
+    assets:   {es:'Nodo 220kV Valencia Este, 3 subestaciones de distribución asociadas', en:'220kV node Valencia East, 3 associated distribution substations'},
+    action:   {es:'Regulación de tensión en curso mediante reactancias. Considerar curtailment solar si supera +3%.', en:'Voltage regulation underway via reactances. Consider solar curtailment if exceeding +3%.'},
+    priority: 'P2',
+    eta:      {es:'Resolución automática prevista a las 16:30', en:'Automatic resolution expected at 16:30'},
+    affected: {es:'Calidad de suministro en zona costera Valencia Norte', en:'Supply quality in Valencia North coastal area'},
+    code:     'WRN-2024-1098',
+  },
+  {
+    type:'info',
+    es:'Rampa eólica: +340 MW en 15 min',
+    en:'Wind ramp: +340 MW in 15 min',
+    loc:'Navarra (ES220)',
+    cause:    {es:'Frente meteorológico activo con vientos de 18 m/s en sierra de Urbasa', en:'Active weather front with 18 m/s winds over Sierra de Urbasa'},
+    assets:   {es:'Parques eólicos PE-Urbasa (120 MW), PE-Alaiz (40 MW), PE-Guerinda (68 MW)', en:'Wind farms WF-Urbasa (120 MW), WF-Alaiz (40 MW), WF-Guerinda (68 MW)'},
+    action:   {es:'REE notificado. Despacho ajustando reserva de regulación secundaria. Sin acción urgente requerida.', en:'REE notified. Dispatch adjusting secondary regulation reserve. No urgent action required.'},
+    priority: 'P3',
+    eta:      {es:'Rampa estabilizada en ~45 min según pronóstico meteorológico', en:'Ramp stabilisation in ~45 min per weather forecast'},
+    affected: {es:'Generación neta Navarra +340 MW', en:'Net generation Navarra +340 MW'},
+    code:     'INF-2024-0442',
+  },
+  {
+    type:'info',
+    es:'Pico solar: 8,200 MW — récord del día',
+    en:'Solar peak: 8,200 MW — daily record',
+    loc:'Red Nacional',
+    cause:    {es:'Alta irradiación solar en península: cielos despejados en Extremadura, Castilla-La Mancha y Murcia', en:'High solar irradiance across peninsula: clear skies over Extremadura, Castilla-La Mancha and Murcia'},
+    assets:   {es:'Múltiples plantas fotovoltaicas. Mayor contribución: Extremadura (2,100 MW), Sevilla (1,840 MW)', en:'Multiple PV plants. Largest contributions: Extremadura (2,100 MW), Sevilla (1,840 MW)'},
+    action:   {es:'Situación nominal. Posible curtailment preventivo en horas 13–15 si demanda no absorbe excedente.', en:'Nominal situation. Possible preventive curtailment 13–15h if demand does not absorb surplus.'},
+    priority: 'P4',
+    eta:      {es:'Reducción natural prevista a partir de las 17:30', en:'Natural reduction expected from 17:30'},
+    affected: {es:'Precio marginal eléctrico en mínimos del día', en:'Marginal electricity price at daily minimum'},
+    code:     'INF-2024-0438',
+  },
+  {
+    type:'warn',
+    es:'Temperatura transformador 94°C',
+    en:'Transformer temperature 94°C',
+    loc:'Madrid (ES300)',
+    cause:    {es:'Sobrecarga sostenida durante 3 horas en período punta matinal', en:'Sustained overload for 3 hours during morning peak period'},
+    assets:   {es:'Transformador AT/MT TR-MAD-7 (400/220kV, 500 MVA), SE-Madrid Vallecas', en:'HV/MV transformer TR-MAD-7 (400/220kV, 500 MVA), SE-Madrid Vallecas'},
+    action:   {es:'Límite de alarma: 95°C. Preparar transferencia de carga a TR-MAD-8. Técnico de guardia notificado.', en:'Alarm limit: 95°C. Prepare load transfer to TR-MAD-8. On-call technician notified.'},
+    priority: 'P2',
+    eta:      {es:'Crítico si supera 95°C — acción inmediata requerida', en:'Critical if exceeding 95°C — immediate action required'},
+    affected: {es:'Zona sur Madrid metropolitano, ~180,000 clientes', en:'South Madrid metropolitan area, ~180,000 customers'},
+    code:     'WRN-2024-1201',
+  },
+  {
+    type:'info',
+    es:'Importación desde Francia: +1,200 MW',
+    en:'Import from France: +1,200 MW',
+    loc:'Interconexión Norte',
+    cause:    {es:'Despacho óptimo activa importación por precio favorable en mercado EPEX Spot', en:'Optimal dispatch activates import due to favourable price on EPEX Spot market'},
+    assets:   {es:'Interconexión Hendaya–Irún (DC 1,400 MW), Interconexión Santa Llogaia–Baixas (AC 400 MW)', en:'Hendaya–Irún interconnection (DC 1,400 MW), Santa Llogaia–Baixas (AC 400 MW)'},
+    action:   {es:'Sin acción requerida. Importación dentro de límites contractuales.', en:'No action required. Import within contractual limits.'},
+    priority: 'P4',
+    eta:      {es:'Importación prevista hasta las 22:00h', en:'Import forecast until 22:00h'},
+    affected: {es:'Reducción de precio marginal en mercado diario español', en:'Reduction in marginal price on Spanish day-ahead market'},
+    code:     'INF-2024-0451',
+  },
+  {
+    type:'warn',
+    es:'Demanda prevista al alza 18:00–21:00',
+    en:'Demand forecast rising 18:00–21:00',
+    loc:'Sistema Nacional',
+    cause:    {es:'Punta vespertina típica ampliada por temperaturas altas y regreso masivo al hogar', en:'Typical evening peak extended by high temperatures and mass return home'},
+    assets:   {es:'Sistema nacional. Máxima presión esperada en Madrid, Barcelona, Valencia y Sevilla', en:'National system. Maximum pressure expected in Madrid, Barcelona, Valencia and Sevilla'},
+    action:   {es:'REE activando reserva terciaria preventiva. Centrales de ciclo combinado en standby para arranque rápido.', en:'REE activating preventive tertiary reserve. Combined cycle plants in standby for fast start.'},
+    priority: 'P2',
+    eta:      {es:'Punta máxima estimada: 37,800 MW a las 20:15', en:'Estimated peak: 37,800 MW at 20:15'},
+    affected: {es:'Sistema nacional — todos los operadores de distribución', en:'National system — all distribution operators'},
+    code:     'WRN-2024-1188',
+  },
+  {
+    type:'info',
+    es:'Generación hidráulica +380 MW por lluvias',
+    en:'Hydro +380 MW due to rainfall',
+    loc:'Galicia',
+    cause:    {es:'Precipitaciones intensas en cuencas del Miño y Sil: +85mm en 24h', en:'Heavy rainfall in Miño and Sil basins: +85mm in 24h'},
+    assets:   {es:'CH-Belesar (400 MW), CH-Frieira (267 MW), CH-Pumares (88 MW)', en:'HP-Belesar (400 MW), HP-Frieira (267 MW), HP-Pumares (88 MW)'},
+    action:   {es:'Incremento de generación hidráulica en curso. Embalses al 78% de capacidad útil.', en:'Hydro generation increase underway. Reservoirs at 78% useful capacity.'},
+    priority: 'P4',
+    eta:      {es:'Generación sostenida prevista durante 48–72h', en:'Sustained generation forecast for 48–72h'},
+    affected: {es:'Exportación neta Galicia al alza. Beneficio para el sistema nacional.', en:'Galicia net export rising. Benefit for national system.'},
+    code:     'INF-2024-0455',
+  },
+  {
+    type:'fault',
+    es:'Alarma térmica en línea 400kV',
+    en:'Thermal alarm on 400kV line',
+    loc:'Red Transporte Sur',
+    cause:    {es:'Corriente de línea 98% del límite nominal. Temperatura conductor 82°C (límite 85°C)', en:'Line current at 98% of nominal limit. Conductor temperature 82°C (limit 85°C)'},
+    assets:   {es:'Línea 400kV L-4108 Sevilla–Málaga (tramo Antequera–Bobadilla, 47 km)', en:'400kV line L-4108 Sevilla–Málaga (Antequera–Bobadilla section, 47 km)'},
+    action:   {es:'N-1 comprometido en este corredor. Reducción de flujo en curso redirigiendo por L-4109. Equipo de inspección aérea programado.', en:'N-1 compromised on this corridor. Flow reduction underway rerouting via L-4109. Aerial inspection team scheduled.'},
+    priority: 'P1',
+    eta:      {es:'Ventana crítica: próximas 2 horas. Resolución prevista en 6h si temperatura ambiental baja.', en:'Critical window: next 2 hours. Resolution expected in 6h if ambient temperature drops.'},
+    affected: {es:'Capacidad de transporte Sevilla–Málaga reducida al 60%', en:'Sevilla–Málaga transport capacity reduced to 60%'},
+    code:     'FLT-2024-0892',
+  },
+];
+
+// ═══════════════════════════════════════════════
+//  MAP
+// ═══════════════════════════════════════════════
+const map = L.map('map', {center:[40.4,-3.7], zoom:6, minZoom:5, maxZoom:13});
+
+const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const lightTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+let tileLayer = L.tileLayer(darkTiles, {
+  attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
+}).addTo(map);
+
+// Layer cache
+const layers = { nacional: null, ccaa: null, provincias: null, red: null };
+let currentTab = '';
+let demand=28450, ren=68, freq=50.01;
+const chatHistory = [];
+
+// ─── COLOURS ───
+function sCol(status, load) {
+  if (status==='fault') return '#ff3535';
+  if (status==='warn' || load>=80) return '#ffaa00';
+  return '#00ff88';
+}
+function sOp(status, load) {
+  if (status==='fault') return .65;
+  if (status==='warn' || load>=80) return .5;
+  return .38;
+}
+function bStyle(load) {
+  return load>=90 ? 'background:#ff3535' : load>=80 ? 'background:#ffaa00' : 'background:#00ff88';
+}
+
+// ─── TOOLTIP HTML ───
+function ttipCCAA(id) {
+  const d = ccaaData[id]; if(!d) return '';
+  const col = sCol(d.status, d.load);
+  return `<b style="color:${col}">${d.name}</b><br>${t('load')}: <span style="color:${col}">${d.load}%</span> &nbsp; ${t('status')}: <span style="color:${col}">${t('s_'+d.status)}</span>`;
+}
+function ttipProv(id) {
+  const d = provData[id]; if(!d) return '';
+  const col = sCol(d.status, d.load);
+  return `<b style="color:${col}">${d.name}</b><br>${t('load')}: <span style="color:${col}">${d.load}%</span>`;
+}
+
+// ─── LOAD CCAA ───
+async function loadCCAA() {
+  if (layers.ccaa) { map.addLayer(layers.ccaa); return; }
+  showLoading(true);
+  try {
+    const r    = await fetch('/ccaa.geojson');
+    const data = await r.json();
+    layers.ccaa = L.geoJSON(data, {
+      style: f => {
+        const d = ccaaData[f.properties.NUTS_ID];
+        return {
+          fillColor:   d ? sCol(d.status,d.load) : '#334',
+          fillOpacity: d ? sOp(d.status,d.load)  : .05,
+          color:'#0f2d4a', weight:1.5,
+        };
+      },
+      onEachFeature: (f, layer) => {
+        const id = f.properties.NUTS_ID;
+        const d  = ccaaData[id];
+        if (!d) return;
+        layer.bindTooltip(ttipCCAA(id), {sticky:true, opacity:1});
+        layer.on({
+          mouseover(e) { e.target.setStyle({weight:2.5, fillOpacity: sOp(d.status,d.load)+.18}); e.target.bringToFront(); },
+          mouseout(e)  { layers.ccaa.resetStyle(e.target); },
+          click()      { selectCCAA(id, layer); }
+        });
+      }
+    }).addTo(map);
+  } catch(e) { console.error('CCAA load error:', e); }
+  showLoading(false);
+}
+
+// ─── LOAD PROVINCIAS ───
+async function loadProvincias() {
+  if (layers.provincias) { map.addLayer(layers.provincias); return; }
+  showLoading(true);
+  try {
+    const r    = await fetch('/provincias.geojson');
+    const data = await r.json();
+    layers.provincias = L.geoJSON(data, {
+      style: f => {
+        const d = provData[f.properties.NUTS_ID];
+        return {
+          fillColor:   d ? sCol(d.status,d.load) : '#334',
+          fillOpacity: d ? sOp(d.status,d.load)  : .05,
+          color:'#0f2d4a', weight:1,
+        };
+      },
+      onEachFeature: (f, layer) => {
+        const id = f.properties.NUTS_ID;
+        const d  = provData[id];
+        if (!d) return;
+        layer.bindTooltip(ttipProv(id), {sticky:true, opacity:1});
+        layer.on({
+          mouseover(e) { e.target.setStyle({weight:2, fillOpacity: sOp(d.status,d.load)+.18}); e.target.bringToFront(); },
+          mouseout(e)  { layers.provincias.resetStyle(e.target); },
+          click()      { selectProv(id, layer); }
+        });
+      }
+    }).addTo(map);
+  } catch(e) { console.error('Provincias load error:', e); }
+  showLoading(false);
+}
+
+// ─── TRANSPORT NETWORK ───
+function loadRed() {
+  if (layers.red) { map.removeLayer(layers.red); layers.red = null; }
+
+  // ════════════════════════════════════════════════════════════
+  //  ENERGY DATA  — each route has real-world structured data
+  // ════════════════════════════════════════════════════════════
+
+  // 400kV GRID LINES
+  // Data: flow direction, MW flow, utilisation %, voltage kV, thermal limit MW
+  const gridData = [
+    {flow:1240, util:72, kv:400, limit:1720, dir:'E→W', status:'ok',   km:620},
+    {flow:1850, util:81, kv:400, limit:2280, dir:'W→E', status:'warn', km:590},
+    {flow:980,  util:58, kv:400, limit:1690, dir:'N→S', status:'ok',   km:340},
+    {flow:2100, util:77, kv:400, limit:2720, dir:'N→S', status:'ok',   km:530},
+    {flow:760,  util:62, kv:400, limit:1220, dir:'S→N', status:'ok',   km:450},
+    {flow:540,  util:48, kv:400, limit:1120, dir:'S→N', status:'ok',   km:180},
+    {flow:1380, util:69, kv:400, limit:2000, dir:'W→E', status:'ok',   km:480},
+    {flow:420,  util:44, kv:400, limit:950,  dir:'E→W', status:'ok',   km:210},
+    {flow:680,  util:55, kv:400, limit:1240, dir:'N→S', status:'ok',   km:300},
+    {flow:1560, util:74, kv:400, limit:2100, dir:'N→S', status:'ok',   km:430},
+    {flow:890,  util:63, kv:400, limit:1410, dir:'S→N', status:'ok',   km:160},
+    {flow:740,  util:51, kv:400, limit:1450, dir:'E→W', status:'ok',   km:390},
+  ];
+
+  // AVE TRACTION LINES
+  // Data: traction substations on corridor, total traction load MW,
+  //       avg substation spacing km, voltage AC kV, daily train count
+  const aveData = [
+    {subs:18, tractMW:142, spacing:33, kv:25, trains:104, opened:2008, km:621, status:'ok'},
+    {subs:14, tractMW:88,  spacing:46, kv:25, trains:72,  opened:1992, km:471, status:'ok'},
+    {subs:9,  tractMW:61,  spacing:38, kv:25, trains:58,  opened:2010, km:320, status:'ok'},
+    {subs:12, tractMW:95,  spacing:40, kv:25, trains:66,  opened:2007, km:512, status:'ok'},
+    {subs:6,  tractMW:38,  spacing:34, kv:25, trains:44,  opened:2007, km:202, status:'ok'},
+    {subs:11, tractMW:72,  spacing:41, kv:25, trains:0,   opened:null, km:394, status:'ok'},
+    {subs:4,  tractMW:24,  spacing:30, kv:25, trains:28,  opened:1992, km:166, status:'ok'},
+    {subs:3,  tractMW:18,  spacing:44, kv:25, trains:22,  opened:2013, km:156, status:'ok'},
+  ];
+
+  // MOTORWAYS
+  // Data: corridor demand MW (lighting + tolls + services + EV charging),
+  //       service areas, EV chargers, tunnel load MW, ADSL (daily vehicles k)
+  const apData = [
+    {demandMW:38, services:24, evChargers:186, tunnelMW:4.2, vehicles:82, km:1120, status:'ok'},
+    {demandMW:22, services:14, evChargers:98,  tunnelMW:0,   vehicles:55, km:540,  status:'ok'},
+    {demandMW:14, services:9,  evChargers:72,  tunnelMW:0,   vehicles:42, km:360,  status:'ok'},
+    {demandMW:18, services:11, evChargers:84,  tunnelMW:1.1, vehicles:48, km:445,  status:'ok'},
+    {demandMW:20, services:13, evChargers:96,  tunnelMW:0,   vehicles:51, km:610,  status:'ok'},
+    {demandMW:12, services:8,  evChargers:44,  tunnelMW:0,   vehicles:28, km:400,  status:'ok'},
+    {demandMW:24, services:16, evChargers:112, tunnelMW:2.8, vehicles:38, km:700,  status:'ok'},
+    {demandMW:8,  services:5,  evChargers:28,  tunnelMW:0.4, vehicles:22, km:190,  status:'ok'},
+    {demandMW:16, services:10, evChargers:58,  tunnelMW:1.6, vehicles:44, km:500,  status:'ok'},
+    {demandMW:14, services:9,  evChargers:48,  tunnelMW:0,   vehicles:30, km:680,  status:'ok'},
+    {demandMW:6,  services:4,  evChargers:22,  tunnelMW:0,   vehicles:18, km:140,  status:'ok'},
+    {demandMW:9,  services:6,  evChargers:36,  tunnelMW:2.1, vehicles:24, km:260,  status:'ok'},
+    {demandMW:5,  services:3,  evChargers:18,  tunnelMW:0,   vehicles:16, km:80,   status:'ok'},
+    {demandMW:10, services:6,  evChargers:38,  tunnelMW:0,   vehicles:28, km:290,  status:'ok'},
+    {demandMW:7,  services:4,  evChargers:24,  tunnelMW:0,   vehicles:20, km:150,  status:'ok'},
+  ];
+
+  const gridCoords = [
+    [[43.26,-2.92],[43.32,-1.98],[41.65,2.18]],
+    [[40.4,-3.7],[41.39,-3.69],[41.65,2.18]],
+    [[40.4,-3.7],[39.47,-0.38]],
+    [[40.4,-3.7],[39.1,-4.05],[37.39,-5.98]],
+    [[40.4,-3.7],[42.35,-3.7],[43.26,-2.92]],
+    [[40.4,-3.7],[41.66,-4.72]],
+    [[37.39,-5.98],[36.72,-4.42],[37.99,-1.13]],
+    [[37.39,-5.98],[37.26,-6.95],[37.1,-7.85]],
+    [[39.47,-0.38],[37.99,-1.13]],
+    [[39.47,-0.38],[41.65,2.18]],
+    [[41.65,2.18],[42.35,3.13]],
+    [[40.4,-3.7],[38.99,-6.83]],
+  ];
+  const aveCoords = [
+    [[40.4,-3.7],[41.39,-3.69],[41.39,0.52],[41.65,2.18]],
+    [[40.4,-3.7],[39.87,-3.92],[38.35,-3.92],[37.88,-4.78],[37.39,-5.98]],
+    [[40.4,-3.7],[40.07,-2.14],[39.47,-0.38]],
+    [[40.4,-3.7],[37.39,-5.98],[36.72,-4.42]],
+    [[40.4,-3.7],[40.96,-4.12],[41.66,-4.72]],
+    [[40.4,-3.7],[42.35,-3.7],[43.26,-2.92]],
+    [[37.39,-5.98],[36.53,-6.29]],
+    [[41.65,2.18],[42.35,3.13]],
+  ];
+  const apCoords = [
+    [[43.32,-1.98],[43.28,-1.62],[43.11,-0.42],[42.82,0.52],[42.35,3.13],[41.65,2.18],[41.1,1.25],[40.62,0.52],[39.47,-0.38],[38.34,-0.49],[37.99,-1.13],[37.51,-1.76],[36.84,-2.46],[36.72,-4.42]],
+    [[40.4,-3.7],[39.46,-3.36],[38.35,-3.35],[37.88,-4.78],[37.39,-5.98],[36.53,-6.29],[36.14,-5.35]],
+    [[40.4,-3.7],[40.07,-3.0],[39.98,-1.86],[39.47,-0.38]],
+    [[40.4,-3.7],[41.0,-3.69],[41.66,-3.69],[42.35,-3.7],[42.85,-2.67],[43.26,-2.92]],
+    [[40.4,-3.7],[40.82,-2.98],[41.39,-3.69],[41.65,-0.87],[41.62,0.62],[41.65,2.18]],
+    [[40.4,-3.7],[39.96,-4.82],[39.65,-5.98],[38.91,-6.33],[38.88,-6.97]],
+    [[40.4,-3.7],[40.96,-4.12],[41.66,-4.72],[42.01,-6.72],[42.6,-7.55],[42.88,-8.54],[43.37,-8.4]],
+    [[43.49,-8.2],[43.37,-8.4],[42.88,-8.54],[42.24,-8.72]],
+    [[43.26,-2.92],[43.46,-3.8],[43.36,-5.84],[43.55,-5.67],[43.4,-7.0],[43.37,-8.4]],
+    [[43.55,-5.67],[43.36,-5.84],[40.96,-5.66],[39.47,-6.37],[38.91,-6.33],[37.39,-5.98]],
+    [[37.39,-5.98],[37.26,-6.95],[37.1,-7.85]],
+    [[41.39,-3.69],[41.66,-0.87],[42.5,-0.53],[42.79,-0.52]],
+    [[37.99,-1.13],[37.6,-0.98]],
+    [[37.39,-5.98],[37.18,-3.6],[36.84,-2.46]],
+    [[37.18,-3.6],[36.72,-4.42]],
+  ];
+
+  const gridNames = [
+    {es:'400kV · Vasco–Donosti–Barcelona',      en:'400kV · Basque–Barcelona'},
+    {es:'400kV · Madrid–Zaragoza–Barcelona',    en:'400kV · Madrid–Zaragoza–Barcelona'},
+    {es:'400kV · Madrid–Valencia',              en:'400kV · Madrid–Valencia'},
+    {es:'400kV · Madrid–Córdoba–Sevilla',       en:'400kV · Madrid–Córdoba–Sevilla'},
+    {es:'400kV · Madrid–Burgos–Bilbao',         en:'400kV · Madrid–Burgos–Bilbao'},
+    {es:'400kV · Madrid–Valladolid',            en:'400kV · Madrid–Valladolid'},
+    {es:'400kV · Sevilla–Málaga–Murcia',        en:'400kV · Sevilla–Málaga–Murcia'},
+    {es:'400kV · Sevilla–Huelva–Portugal',      en:'400kV · Sevilla–Huelva–Portugal'},
+    {es:'400kV · Valencia–Murcia',              en:'400kV · Valencia–Murcia'},
+    {es:'400kV · Valencia–Barcelona (costa)',   en:'400kV · Valencia–Barcelona (coast)'},
+    {es:'400kV · Barcelona–Frontera Francia',   en:'400kV · Barcelona–French border'},
+    {es:'400kV · Madrid–Extremadura',           en:'400kV · Madrid–Extremadura'},
+  ];
+  const aveNames = [
+    {es:'AVE Madrid–Barcelona (vía Zaragoza, 2008)',   en:'AVE Madrid–Barcelona (via Zaragoza, 2008)'},
+    {es:'AVE Madrid–Sevilla (vía Córdoba, 1992)',      en:'AVE Madrid–Sevilla (via Córdoba, 1992)'},
+    {es:'AVE Madrid–Valencia (vía Cuenca, 2010)',      en:'AVE Madrid–Valencia (via Cuenca, 2010)'},
+    {es:'AVE Madrid–Málaga (vía Córdoba, 2007)',       en:'AVE Madrid–Málaga (via Córdoba, 2007)'},
+    {es:'AVE Madrid–Valladolid (2007)',                en:'AVE Madrid–Valladolid (2007)'},
+    {es:'AVE Madrid–Bilbao · Y Vasca (en obras)',      en:'AVE Madrid–Bilbao · Y Vasca (u/c)'},
+    {es:'AVE Sevilla–Cádiz',                           en:'AVE Sevilla–Cádiz'},
+    {es:'AVE Barcelona–Frontera Francia',              en:'AVE Barcelona–French border'},
+  ];
+  const apNames = [
+    {es:'AP-7 / A-7 · Corredor Mediterráneo',   en:'AP-7 / A-7 · Mediterranean Corridor'},
+    {es:'AP-4 / A-4 · Madrid–Cádiz',            en:'AP-4 / A-4 · Madrid–Cádiz'},
+    {es:'A-3 · Madrid–Valencia',                en:'A-3 · Madrid–Valencia'},
+    {es:'A-1 / AP-1 · Madrid–Bilbao',           en:'A-1 / AP-1 · Madrid–Bilbao'},
+    {es:'A-2 / AP-2 · Madrid–Barcelona',        en:'A-2 / AP-2 · Madrid–Barcelona'},
+    {es:'A-5 · Madrid–Badajoz–Portugal',        en:'A-5 · Madrid–Badajoz–Portugal'},
+    {es:'A-6 / AP-6 · Madrid–A Coruña',         en:'A-6 / AP-6 · Madrid–A Coruña'},
+    {es:'AP-9 · Autopista de Galicia',           en:'AP-9 · Galicia Motorway'},
+    {es:'A-8 · Autovía del Cantábrico',          en:'A-8 · Cantabrian Motorway'},
+    {es:'A-66 · Ruta de la Plata',              en:'A-66 · Ruta de la Plata'},
+    {es:'A-7 · Huelva–Portugal',                en:'A-7 · Huelva–Portugal'},
+    {es:'A-23 · Zaragoza–Huesca–Francia',       en:'A-23 · Zaragoza–Huesca–France'},
+    {es:'A-30 · Murcia–Cartagena',              en:'A-30 · Murcia–Cartagena'},
+    {es:'A-92 · Sevilla–Granada–Almería',       en:'A-92 · Sevilla–Granada–Almería'},
+    {es:'A-44 · Granada–Málaga',                en:'A-44 · Granada–Málaga'},
+  ];
+
+  // ── TOOLTIP BUILDERS ──────────────────────────────────────────
+
+  function gridTip(name, d) {
+    const col = d.util >= 80 ? '#ffaa00' : '#00c8ff';
+    return `<b style="color:#00c8ff">${name[lang]||name.es}</b>
+<hr style="border-color:#0f2d4a;margin:4px 0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:.65rem">
+  <span style="color:var(--muted)">${lang==='es'?'Flujo':'Flow'}</span>       <b style="color:#00c8ff">${d.flow.toLocaleString()} MW ${d.dir}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Utilización':'Utilisation'}</span> <b style="color:${col}">${d.util}%</b>
+  <span style="color:var(--muted)">${lang==='es'?'Tensión':'Voltage'}</span>   <b>${d.kv} kV</b>
+  <span style="color:var(--muted)">${lang==='es'?'Límite térmico':'Thermal limit'}</span> <b>${d.limit.toLocaleString()} MW</b>
+  <span style="color:var(--muted)">${lang==='es'?'Longitud':'Length'}</span>   <b>${d.km} km</b>
+</div>`;
+  }
+
+  function aveTip(name, d) {
+    const col = d.tractMW > 100 ? '#ffaa00' : '#ff4444';
+    const openedStr = d.opened ? d.opened.toString() : (lang==='es'?'En obras':'Under construction');
+    return `<b style="color:#ff4444">${name[lang]||name.es}</b>
+<hr style="border-color:#0f2d4a;margin:4px 0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:.65rem">
+  <span style="color:var(--muted)">${lang==='es'?'Subestaciones tracción':'Traction substations'}</span> <b style="color:#ff4444">${d.subs}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Demanda tracción':'Traction demand'}</span> <b style="color:${col}">${d.tractMW} MW</b>
+  <span style="color:var(--muted)">${lang==='es'?'Tensión catenaria':'Catenary voltage'}</span> <b>${d.kv} kV AC</b>
+  <span style="color:var(--muted)">${lang==='es'?'Spacing medio':'Avg spacing'}</span> <b>${d.spacing} km</b>
+  <span style="color:var(--muted)">${lang==='es'?'Trenes/día':'Trains/day'}</span>  <b>${d.trains||lang==='es'?'—':'—'}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Inaugurado':'Opened'}</span>   <b>${openedStr}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Longitud':'Length'}</span>   <b>${d.km} km</b>
+</div>`;
+  }
+
+  function apTip(name, d) {
+    const col = d.demandMW > 25 ? '#ffaa00' : '#cc8800';
+    return `<b style="color:#ffaa00">${name[lang]||name.es}</b>
+<hr style="border-color:#0f2d4a;margin:4px 0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:.65rem">
+  <span style="color:var(--muted)">${lang==='es'?'Demanda corredor':'Corridor demand'}</span> <b style="color:${col}">${d.demandMW} MW</b>
+  <span style="color:var(--muted)">${lang==='es'?'Áreas de servicio':'Service areas'}</span> <b>${d.services}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Puntos carga EV':'EV chargers'}</span>    <b style="color:#00ff88">${d.evChargers}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Carga túneles':'Tunnel load'}</span>  <b>${d.tunnelMW > 0 ? d.tunnelMW+' MW' : '—'}</b>
+  <span style="color:var(--muted)">${lang==='es'?'Vehículos/día':'Vehicles/day'}</span>  <b>${d.vehicles}k</b>
+  <span style="color:var(--muted)">${lang==='es'?'Longitud':'Length'}</span>   <b>${d.km} km</b>
+</div>`;
+  }
+
+  // ── SIDE PANEL BUILDER ────────────────────────────────────────
+
+  function showRedPanel(type, name, d) {
+    document.getElementById('side-ttl').innerHTML =
+      `<span style="color:var(--accent)">${name[lang]||name.es}</span>`;
+    const rd = document.getElementById('region-detail');
+    rd.className = 'rd show';
+
+    if (type === 'grid') {
+      const col = d.util>=80?'var(--amber)':'var(--accent)';
+      const headroom = d.limit - d.flow;
+      rd.innerHTML = `
+        <div class="rd-name" style="font-size:.78rem">${name[lang]||name.es}</div>
+        <div class="rd-cap">${lang==='es'?'Red de Transporte 400kV — REE':'400kV Transmission Grid — REE'}</div>
+        <div class="rd-grid">
+          <div class="rd-stat"><div class="rd-val" style="color:var(--accent)">${d.flow.toLocaleString()}</div><div class="rd-lbl">${lang==='es'?'Flujo MW':'Flow MW'}</div></div>
+          <div class="rd-stat"><div class="rd-val" style="color:${col}">${d.util}%</div><div class="rd-lbl">${lang==='es'?'Utilización':'Utilisation'}</div>
+            <div class="rd-bw"><div class="rd-bf" style="background:${col.replace('var(','').replace(')','')};width:${d.util}%"></div></div></div>
+          <div class="rd-stat"><div class="rd-val">${d.kv} kV</div><div class="rd-lbl">${lang==='es'?'Tensión':'Voltage'}</div></div>
+          <div class="rd-stat"><div class="rd-val" style="color:var(--green)">${headroom.toLocaleString()}</div><div class="rd-lbl">${lang==='es'?'Margen MW':'Headroom MW'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.limit.toLocaleString()}</div><div class="rd-lbl">${lang==='es'?'Límite térmico':'Thermal limit'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.dir}</div><div class="rd-lbl">${lang==='es'?'Dirección flujo':'Flow direction'}</div></div>
+        </div>`;
+      document.getElementById('lbl-subtable').textContent = lang==='es'?'Tramo':'Segment';
+      document.getElementById('sub-list').innerHTML = `
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Longitud':'Length'}</span><span class="spct">${d.km} km</span>
+        </div>
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Estado':'Status'}</span><span class="spct" style="color:${col}">${d.util>=80?(lang==='es'?'ALTA CARGA':'HIGH LOAD'):(lang==='es'?'NORMAL':'NORMAL')}</span>
+        </div>`;
+
+    } else if (type === 'ave') {
+      const openedStr = d.opened ? d.opened.toString() : (lang==='es'?'En obras':'Under construction');
+      rd.innerHTML = `
+        <div class="rd-name" style="font-size:.78rem">${name[lang]||name.es}</div>
+        <div class="rd-cap">${lang==='es'?'Alta Velocidad Española — RENFE / ADIF':'Spanish High Speed Rail — RENFE / ADIF'}</div>
+        <div class="rd-grid">
+          <div class="rd-stat"><div class="rd-val" style="color:var(--red)">${d.subs}</div><div class="rd-lbl">${lang==='es'?'Subestaciones':'Substations'}</div></div>
+          <div class="rd-stat"><div class="rd-val" style="color:var(--amber)">${d.tractMW}</div><div class="rd-lbl">${lang==='es'?'Demanda MW':'Demand MW'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.kv} kV AC</div><div class="rd-lbl">${lang==='es'?'Catenaria':'Catenary'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.spacing} km</div><div class="rd-lbl">${lang==='es'?'Spacing medio':'Avg spacing'}</div></div>
+          <div class="rd-stat"><div class="rd-val" style="color:var(--green)">${d.trains||'—'}</div><div class="rd-lbl">${lang==='es'?'Trenes/día':'Trains/day'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.km} km</div><div class="rd-lbl">${lang==='es'?'Longitud':'Length'}</div></div>
+        </div>`;
+      document.getElementById('lbl-subtable').textContent = lang==='es'?'Info':'Info';
+      document.getElementById('sub-list').innerHTML = `
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Inaugurado':'Opened'}</span><span class="spct">${openedStr}</span>
+        </div>
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Energía/tren':'Energy/train'}</span><span class="spct">${(d.tractMW/Math.max(d.trains,1)*1000).toFixed(0)} kWh</span>
+        </div>`;
+
+    } else if (type === 'ap') {
+      rd.innerHTML = `
+        <div class="rd-name" style="font-size:.78rem">${name[lang]||name.es}</div>
+        <div class="rd-cap">${lang==='es'?'Red de Autopistas y Autovías — MITMA':'Motorway Network — MITMA'}</div>
+        <div class="rd-grid">
+          <div class="rd-stat"><div class="rd-val" style="color:var(--amber)">${d.demandMW}</div><div class="rd-lbl">${lang==='es'?'Demanda MW':'Demand MW'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.services}</div><div class="rd-lbl">${lang==='es'?'Áreas servicio':'Service areas'}</div></div>
+          <div class="rd-stat"><div class="rd-val" style="color:var(--green)">${d.evChargers}</div><div class="rd-lbl">${lang==='es'?'Puntos EV':'EV chargers'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.tunnelMW>0?d.tunnelMW+' MW':'—'}</div><div class="rd-lbl">${lang==='es'?'Carga túneles':'Tunnel load'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.vehicles}k</div><div class="rd-lbl">${lang==='es'?'Vehículos/día':'Vehicles/day'}</div></div>
+          <div class="rd-stat"><div class="rd-val">${d.km} km</div><div class="rd-lbl">${lang==='es'?'Longitud':'Length'}</div></div>
+        </div>`;
+      document.getElementById('lbl-subtable').textContent = lang==='es'?'Desglose demanda':'Demand breakdown';
+      const lightingMW = (d.km * 0.012).toFixed(1);
+      const tollMW     = (d.services * 0.08).toFixed(1);
+      const evMW       = (d.evChargers * 0.15).toFixed(1);
+      document.getElementById('sub-list').innerHTML = `
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Iluminación':'Lighting'}</span><span class="spct">${lightingMW} MW</span>
+        </div>
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Peajes / edificios':'Tolls / buildings'}</span><span class="spct">${tollMW} MW</span>
+        </div>
+        <div class="sub-row" style="grid-template-columns:1fr 1fr">
+          <span class="sub-nm">${lang==='es'?'Recarga EV':'EV charging'}</span><span class="spct" style="color:var(--green)">${evMW} MW</span>
+        </div>`;
+    }
+  }
+
+  // ── LINE FACTORY ──────────────────────────────────────────────
+
+  function makeLine(coords, style, tipHTML, onClickFn) {
+    const line = L.polyline(coords, {...style});
+    line.bindTooltip(tipHTML, {sticky:true, opacity:1, className:''});
+    line.on('mouseover', e => e.target.setStyle({weight: style.weight+2, opacity:1}));
+    line.on('mouseout',  e => e.target.setStyle({weight: style.weight,   opacity: style.opacity}));
+    line.on('click', onClickFn);
+    return line;
+  }
+
+  const gStyle = {color:'#00c8ff', weight:2.5, opacity:.8};
+  const aStyle = {color:'#ff4444', weight:2.5, opacity:.85, dashArray:'6 4'};
+  const pStyle = {color:'#ffaa00', weight:3,   opacity:.75, dashArray:'10 4'};
+
+  const layerItems = [
+    ...apCoords.map((c,i)   => makeLine(c, pStyle, apTip(apNames[i],   apData[i]),   () => showRedPanel('ap',   apNames[i],   apData[i]))),
+    ...aveCoords.map((c,i)  => makeLine(c, aStyle, aveTip(aveNames[i], aveData[i]),  () => showRedPanel('ave',  aveNames[i],  aveData[i]))),
+    ...gridCoords.map((c,i) => makeLine(c, gStyle, gridTip(gridNames[i],gridData[i]),() => showRedPanel('grid', gridNames[i], gridData[i]))),
+  ];
+
+  layers.red = L.layerGroup(layerItems).addTo(map);
+}
+
+
+// ─── REFRESH TOOLTIPS on lang change ───
+function refreshTooltips() {
+  if (layers.ccaa) {
+    layers.ccaa.eachLayer(layer => {
+      const id = layer.feature?.properties?.NUTS_ID;
+      if (id && ccaaData[id]) layer.setTooltipContent(ttipCCAA(id));
+    });
+  }
+  if (layers.provincias) {
+    layers.provincias.eachLayer(layer => {
+      const id = layer.feature?.properties?.NUTS_ID;
+      if (id && provData[id]) layer.setTooltipContent(ttipProv(id));
+    });
+  }
+}
+
+// ─── SHOW/HIDE LAYERS ───
+function clearLayers() {
+  Object.values(layers).forEach(l => { if(l) map.removeLayer(l); });
+}
+
+// ─── TABS ───
+// ─── NACIONAL VIEW — country outline + city markers only ───
+function loadNacional() {
+  if (layers.nacional) { map.addLayer(layers.nacional); return; }
+
+  const cities = [
+    {name:'Madrid',      lat:40.42, lon:-3.70,  role:{es:'Capital Nacional',      en:'National Capital'},      load: ccaaData['ES30'].load,  status: ccaaData['ES30'].status},
+    {name:'Barcelona',   lat:41.39, lon:2.15,   role:{es:'Cap. Cataluña',         en:'Capital of Catalonia'},   load: ccaaData['ES51'].load,  status: ccaaData['ES51'].status},
+    {name:'Valencia',    lat:39.47, lon:-0.38,  role:{es:'Cap. C. Valenciana',    en:'Capital of Valencia'},    load: ccaaData['ES52'].load,  status: ccaaData['ES52'].status},
+    {name:'Sevilla',     lat:37.39, lon:-5.98,  role:{es:'Cap. Andalucía',        en:'Capital of Andalucía'},   load: ccaaData['ES61'].load,  status: ccaaData['ES61'].status},
+    {name:'Bilbao',      lat:43.26, lon:-2.92,  role:{es:'Cap. País Vasco',       en:'Capital of País Vasco'},  load: ccaaData['ES21'].load,  status: ccaaData['ES21'].status},
+    {name:'Zaragoza',    lat:41.65, lon:-0.87,  role:{es:'Cap. Aragón',           en:'Capital of Aragón'},      load: ccaaData['ES24'].load,  status: ccaaData['ES24'].status},
+    {name:'Málaga',      lat:36.72, lon:-4.42,  role:{es:'Costa del Sol',         en:'Costa del Sol'},          load: 70, status:'ok'},
+    {name:'A Coruña',    lat:43.37, lon:-8.40,  role:{es:'Cap. Galicia (costa)',  en:'Galicia (coast)'},        load: ccaaData['ES11'].load,  status: ccaaData['ES11'].status},
+    {name:'Valladolid',  lat:41.66, lon:-4.72,  role:{es:'Cap. Cast. y León',     en:'Capital of Castilla y León'},load: ccaaData['ES41'].load,status: ccaaData['ES41'].status},
+    {name:'Palma',       lat:39.57, lon:2.65,   role:{es:'Cap. Illes Balears',    en:'Capital of Illes Balears'},load: ccaaData['ES53'].load,status: ccaaData['ES53'].status},
+    {name:'Las Palmas',  lat:28.12, lon:-15.43, role:{es:'Cap. Canarias',         en:'Capital of Canarias'},    load: ccaaData['ES70'].load,  status: ccaaData['ES70'].status},
+    {name:'Pamplona',    lat:42.81, lon:-1.64,  role:{es:'Cap. Navarra',          en:'Capital of Navarra'},     load: ccaaData['ES22'].load,  status: ccaaData['ES22'].status},
+  ];
+
+  const markers = cities.map(c => {
+    const col = sCol(c.status, c.load);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:${col};
+               box-shadow:0 0 8px ${col};border:1.5px solid rgba(255,255,255,.3)"></div>`,
+      iconSize: [10,10],
+      iconAnchor: [5,5],
+    });
+    const m = L.marker([c.lat, c.lon], {icon});
+    m.bindTooltip(
+      `<b style="color:${col}">${c.name}</b><br>
+       <span style="color:var(--muted)">${c.role[lang]||c.role.es}</span><br>
+       ${t('load')}: <span style="color:${col}">${c.load}%</span> &nbsp;
+       ${t('status')}: <span style="color:${col}">${t('s_'+c.status)}</span>`,
+      {opacity:1, className:''}
+    );
+    return m;
+  });
+
+  layers.nacional = L.layerGroup(markers).addTo(map);
+}
+
+async function setTab(tab) {
+  if (tab === currentTab) return;
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+
+  const mapBody    = document.getElementById('map-body');
+  const alertsView = document.getElementById('alerts-view');
+  const mapLegend  = document.getElementById('map-legend');
+  const redLegend  = document.getElementById('red-legend');
+
+  clearLayers();
+
+  if (tab === 'alertas') {
+    mapBody.style.display    = 'none';
+    alertsView.style.display = 'flex';
+    return;
+  }
+  mapBody.style.display    = 'flex';
+  alertsView.style.display = 'none';
+  mapLegend.style.display  = tab === 'red' ? 'none' : '';
+  redLegend.style.display  = tab === 'red' ? ''     : 'none';
+
+  if (tab === 'nacional') {
+    loadNacional();
+    map.flyTo([40.4,-3.7], 6, {duration:1});
+  } else if (tab === 'comunidades') {
+    await loadCCAA();
+  } else if (tab === 'provincias') {
+    await loadProvincias();
+  } else if (tab === 'red') {
+    loadRed();
+    map.flyTo([40.4,-3.7], 6, {duration:1});
+  }
+}
+
+// ─── SELECT CCAA ───
+function selectCCAA(id, layer) {
+  const d = ccaaData[id]; if(!d) return;
+  const col = sCol(d.status, d.load);
+  // Side panel
+  document.getElementById('side-ttl').innerHTML =
+    `<span style="color:var(--accent)">${d.name}</span>`;
+  const rd = document.getElementById('region-detail');
+  rd.className = 'rd show';
+  rd.innerHTML = `
+    <div class="rd-name">${d.name}</div>
+    <div class="rd-cap">${t('capital')}: ${d.capital}</div>
+    <div class="rd-grid">
+      <div class="rd-stat">
+        <div class="rd-val" style="color:${col}">${d.load}%</div>
+        <div class="rd-lbl">${t('load')}</div>
+        <div class="rd-bw"><div class="rd-bf" style="${bStyle(d.load)};width:${d.load}%"></div></div>
+      </div>
+      <div class="rd-stat"><div class="rd-val">${d.gen.toLocaleString()}</div><div class="rd-lbl">${t('gen')}</div></div>
+      <div class="rd-stat"><div class="rd-val" style="color:var(--green)">${d.ren}%</div><div class="rd-lbl">${t('ren_lbl')}</div></div>
+      <div class="rd-stat"><div class="rd-val" style="color:${col}">${t('s_'+d.status)}</div><div class="rd-lbl">${t('status')}</div></div>
+    </div>`;
+  // Sub-list = provinces of this region
+  document.querySelector('#lbl-subtable') && (document.getElementById('lbl-subtable').textContent = t('provinces'));
+  const provs = Object.entries(provData).filter(([k,v])=>v.nuts2===id);
+  renderSubList(provs.map(([k,v])=>({id:k,name:v.name,load:v.load,status:v.status})));
+  // Breadcrumb
+  showBreadcrumb(d.name, null);
+  // Zoom
+  try { map.fitBounds(layer.getBounds(), {padding:[30,30], maxZoom:9}); } catch(_){}
+  // Auto AI
+  const msg = lang==='es'
+    ? `He seleccionado ${d.name}. Carga: ${d.load}%, generación: ${d.gen} MW, renovable: ${d.ren}%. Estado: ${t('s_'+d.status)}.`
+    : `I selected ${d.name}. Load: ${d.load}%, generation: ${d.gen} MW, renewable: ${d.ren}%. Status: ${t('s_'+d.status)}.`;
+  sendAuto(msg);
+}
+
+// ─── SELECT PROVINCIA ───
+function selectProv(id, layer) {
+  const d = provData[id]; if(!d) return;
+  const parent = ccaaData[d.nuts2];
+  const col    = sCol(d.status, d.load);
+  document.getElementById('side-ttl').innerHTML = `<span style="color:var(--accent)">${d.name}</span>`;
+  const rd = document.getElementById('region-detail');
+  rd.className = 'rd show';
+  rd.innerHTML = `
+    <div class="rd-name">${d.name}</div>
+    <div class="rd-cap">${t('community')}: ${parent ? parent.name : d.nuts2}</div>
+    <div class="rd-grid">
+      <div class="rd-stat">
+        <div class="rd-val" style="color:${col}">${d.load}%</div>
+        <div class="rd-lbl">${t('load')}</div>
+        <div class="rd-bw"><div class="rd-bf" style="${bStyle(d.load)};width:${d.load}%"></div></div>
+      </div>
+      <div class="rd-stat"><div class="rd-val" style="color:${col}">${t('s_'+d.status)}</div><div class="rd-lbl">${t('status')}</div></div>
+    </div>`;
+  document.getElementById('lbl-subtable').textContent = t('subtable');
+  renderSubList([{id:d.name.substring(0,6).toUpperCase(),name:d.name+' Central',load:d.load,status:d.status}]);
+  showBreadcrumb(parent?parent.name:'', d.name);
+  try { map.fitBounds(layer.getBounds(), {padding:[50,50], maxZoom:11}); } catch(_){}
+  const msg = lang==='es'
+    ? `He seleccionado la provincia ${d.name} (${parent?parent.name:''}). Carga: ${d.load}%. Estado: ${t('s_'+d.status)}.`
+    : `I selected the province ${d.name} (${parent?parent.name:''}). Load: ${d.load}%. Status: ${t('s_'+d.status)}.`;
+  sendAuto(msg);
+}
+
+// ─── RENDER SUB LIST ───
+function renderSubList(items) {
+  document.getElementById('sub-list').innerHTML = items.length
+    ? items.map(s => {
+        const col   = sCol(s.status, s.load);
+        const badge = s.status==='fault' ? `<span class="bdg bfault">${t('s_fault')}</span>`
+          : s.load>=80 ? `<span class="bdg bwarn">${t('s_warn')}</span>`
+          : `<span class="bdg bok">${t('s_ok')}</span>`;
+        return `<div class="sub-row">
+          <span class="sub-id">${s.id}</span>
+          <span class="sub-nm">${s.name}</span>
+          <div>
+            <div class="sbw"><div class="sbf" style="${bStyle(s.load)};width:${s.load}%"></div></div>
+            <div class="spct" style="color:${col}">${s.load}%</div>
+          </div>
+          ${badge}
+        </div>`;
+      }).join('')
+    : `<div style="padding:12px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center;margin-top:8px">${t('hint')}</div>`;
+}
+
+// ─── BREADCRUMB ───
+function showBreadcrumb(region, prov) {
+  document.querySelectorAll('.bc-s1').forEach(el => el.style.display = region ? '' : 'none');
+  document.querySelectorAll('.bc-s2').forEach(el => el.style.display = prov   ? '' : 'none');
+  document.getElementById('bc-ccaa').textContent = region || '';
+  document.getElementById('bc-prov').textContent = prov   || '';
+}
+
+function resetView() {
+  showBreadcrumb('', '');
+  map.flyTo([40.4,-3.7], 6, {duration:1.2});
+  document.getElementById('side-ttl').innerHTML = `<span id="lbl-select">${t('select')}</span>`;
+  document.getElementById('region-detail').className = 'rd';
+  renderSubList([]);
+}
+
+function resetToRegion() {
+  map.flyTo([40.4,-3.7], 6, {duration:1});
+}
+
+// ─── LOADING ───
+function showLoading(show) {
+  document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+// ─── ALERTS ───
+// Store live alerts for re-render on lang change
+const liveAlerts = [];
+let selectedAlertIdx = null;
+
+function renderAlertCard(entry, idx) {
+  const {a, time} = entry;
+  const el = document.createElement('div');
+  el.className = `al ${a.type}${selectedAlertIdx===idx?' selected':''}`;
+  el.dataset.idx = idx;
+  el.innerHTML = `<div class="al-t">${time} &nbsp;·&nbsp; <span class="ad-priority ad-${a.priority?.toLowerCase()||'p4'}">${a.priority||''}</span> &nbsp; <span class="ad-code">${a.code||''}</span></div><div class="al-m">${a[lang]||a.es}</div><div class="al-l">${a.loc}</div>`;
+  el.onclick = () => showAlertDetail(idx);
+  return el;
+}
+
+function renderAlertFeed() {
+  const feed = document.getElementById('alert-feed');
+  feed.innerHTML = '';
+  liveAlerts.forEach((entry, idx) => feed.appendChild(renderAlertCard(entry, idx)));
+  const wc = liveAlerts.filter(e=>e.a.type==='warn'||e.a.type==='fault').length;
+  document.getElementById('tc-alt').textContent  = wc;
+  document.getElementById('h-alerts').textContent = wc;
+}
+
+function addAlert(a) {
+  const time = new Date().toLocaleTimeString('es-ES',{hour12:false});
+  liveAlerts.unshift({a, time});
+  if (liveAlerts.length > 20) liveAlerts.pop();
+  renderAlertFeed();
+}
+
+function showAlertDetail(idx) {
+  selectedAlertIdx = idx;
+  // Re-render feed so selected card highlights
+  renderAlertFeed();
+
+  const {a, time} = liveAlerts[idx];
+  const col = a.type==='fault'?'var(--red)':a.type==='warn'?'var(--amber)':'var(--accent)';
+  const typeLabel = a.type==='fault'?(lang==='es'?'FALLO':'FAULT'):a.type==='warn'?(lang==='es'?'ALERTA':'WARNING'):(lang==='es'?'INFO':'INFO');
+
+  const panel = document.getElementById('alert-detail-panel');
+  panel.innerHTML = `
+    <div class="side-ttl" style="justify-content:space-between">
+      <span style="color:${col}">${typeLabel}</span>
+      <span class="ad-priority ad-${(a.priority||'p4').toLowerCase()}">${a.priority||'P4'}</span>
+    </div>
+    <div class="ad-scroll">
+      <div class="ad-section">
+        <div class="ad-code" style="margin-bottom:4px">${a.code||''} &nbsp;·&nbsp; ${time}</div>
+        <div style="font-family:var(--head);font-size:.9rem;font-weight:700;color:${col};letter-spacing:1px;line-height:1.3">${a[lang]||a.es}</div>
+        <div style="font-family:var(--mono);font-size:.62rem;color:var(--accent);margin-top:4px">📍 ${a.loc}</div>
+      </div>
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Causa':'Cause'}</div>
+        <div class="ad-value">${(a.cause&&(a.cause[lang]||a.cause.es))||'—'}</div>
+      </div>
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Activos afectados':'Affected assets'}</div>
+        <div class="ad-value">${(a.assets&&(a.assets[lang]||a.assets.es))||'—'}</div>
+      </div>
+      ${a.affected?`<div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Impacto':'Impact'}</div>
+        <div class="ad-value">${a.affected[lang]||a.affected.es}</div>
+      </div>`:''}
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Acción requerida':'Action required'}</div>
+        <div class="ad-value" style="color:${col}">${(a.action&&(a.action[lang]||a.action.es))||'—'}</div>
+      </div>
+      <div class="ad-section">
+        <div class="ad-label">${lang==='es'?'Resolución estimada':'Estimated resolution'}</div>
+        <div class="ad-value">${(a.eta&&(a.eta[lang]||a.eta.es))||'—'}</div>
+      </div>
+    </div>`;
+}
+
+[...alertsData].reverse().forEach(a => addAlert(a));
+setInterval(() => addAlert(alertsData[Math.floor(Math.random()*alertsData.length)]), 14000);
+
+// ─── LIVE DATA ───
+function fl(v,r) { return +(v+(Math.random()-.5)*r*2).toFixed(2); }
+setInterval(() => {
+  demand = Math.round(fl(demand, 60));
+  ren    = Math.min(95, Math.max(30, Math.round(fl(ren, .5))));
+  freq   = fl(freq, .022);
+  document.getElementById('h-demand').innerHTML = demand.toLocaleString()+' <span style="font-size:.68rem;color:var(--muted)">MW</span>';
+  document.getElementById('h-ren').innerHTML    = ren+'<span style="font-size:.68rem;color:var(--muted)">%</span>';
+  document.getElementById('h-freq').innerHTML   = freq.toFixed(2)+'<span style="font-size:.68rem;color:var(--muted)">Hz</span>';
+}, 3500);
+
+// ─── CLOCK ───
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
+}, 1000);
+
+// ─── AI CHAT ───
+function gridCtx() {
+  const faults = Object.entries(provData).filter(([k,v])=>v.status==='fault').map(([k,v])=>v.name).join(', ')||'None';
+  const high   = Object.entries(ccaaData).filter(([k,v])=>v.load>=80).map(([k,v])=>`${v.name}(${v.load}%)`).join(', ')||'None';
+  return `${t('ai_sys')}
+Live data — Demand: ${demand.toLocaleString()} MW | Renewable: ${ren}% | Frequency: ${freq} Hz
+Active faults: ${faults}
+High load communities (>80%): ${high}
+All communities: ${Object.values(ccaaData).map(v=>`${v.name}:${v.load}%[${v.status}]`).join('; ')}`;
+}
+
+function appendMsg(role, text, typing=false) {
+  const c = document.getElementById('chat-msgs');
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  const roleLabel = role==='user' ? t('op') : t('ai');
+  d.innerHTML = `<div class="msg-role">${roleLabel}</div><div class="bubble${typing?' typing':''}">${text}</div>`;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+  return d.querySelector('.bubble');
+}
+
+async function callAI() {
+  const bubble = appendMsg('ai', '', true);
+  document.getElementById('send-btn').disabled = true;
+  try {
+    const res  = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ system: gridCtx(), messages: chatHistory }),
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'No response.';
+    bubble.classList.remove('typing');
+    bubble.textContent = reply;
+    chatHistory.push({role:'assistant', content:reply});
+  } catch(e) {
+    bubble.classList.remove('typing');
+    bubble.textContent = '⚠ Connection error.';
+  }
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('chat-msgs').scrollTop = 9999;
+}
+
+function sendAuto(msg) {
+  appendMsg('user', msg);
+  chatHistory.push({role:'user', content:msg});
+  callAI();
+}
+
+async function sendMsg() {
+  const inp = document.getElementById('chat-inp');
+  const txt = inp.value.trim(); if(!txt) return;
+  inp.value = ''; inp.style.height = 'auto';
+  document.getElementById('chat-sugg').style.display = 'none';
+  sendAuto(txt);
+}
+function sendSugg(btn) {
+  document.getElementById('chat-inp').value = btn.textContent.trim();
+  sendMsg();
+}
+
+// ─── INIT ───
+document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
+applyLang();
+// ── Apply saved theme on startup ──
+document.body.classList.toggle('light', theme === 'light');
+document.getElementById('theme-btn').textContent = theme === 'dark' ? '☀' : '☾';
+if (theme === 'light') tileLayer.setUrl(lightTiles);
+
+setTab('comunidades');
+</script>
+</body>
+</html>
