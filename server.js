@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path    = require('path');
 
@@ -6,40 +7,42 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve static files — disable caching during development
+// Serve static files — no caching during dev
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: false,
   lastModified: false,
-  setHeaders: (res) => {
-    res.setHeader('Cache-Control', 'no-store');
-  }
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-store'),
 }));
 
-// ─── AI Chat proxy ────────────────────────────────────────────
+// ─── AI Chat — OpenAI GPT-4o ──────────────────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
   const { messages, system } = req.body;
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key':         process.env.ANTHROPIC_API_KEY || '',
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
+        model: 'gpt-4o',
         max_tokens: 400,
-        system,
-        messages,
+        messages: [
+          { role: 'system', content: system || 'You are an AI grid operations assistant.' },
+          ...messages,
+        ],
       }),
     });
     const data = await r.json();
-    res.json(data);
+    if (data.error) return res.status(500).json({ error: data.error.message });
+    // Return in same shape the frontend expects: data.content[0].text
+    res.json({ content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }] });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`\n⚡ Energy Eye running at http://localhost:${PORT}\n`);
+  console.log(`\n⚡ Energy Eye running at http://localhost:${PORT}`);
+  console.log(`🤖 OpenAI key: ${process.env.OPENAI_API_KEY ? '✅ loaded' : '❌ NOT FOUND'}\n`);
 });
