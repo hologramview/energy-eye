@@ -87,12 +87,12 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .leg-line{width:20px;height:3px;flex-shrink:0;border-radius:2px}
 
 /* SIDE PANEL */
-.map-side{width:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:width .22s ease;flex-shrink:0;border-left:1px solid transparent}
+.map-side{width:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:width .22s ease;flex-shrink:0;border-left:1px solid transparent;position:relative}
 .map-side.open{width:238px;border-left-color:var(--bdr)}
-.side-ttl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.side-ttl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 12px 8px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .side-ttl::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
-.side-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;line-height:1;padding:0 2px;transition:color .15s}
-.side-close:hover{color:var(--red)}
+.side-close{margin-left:auto;background:var(--surf2);border:1px solid var(--bdr);cursor:pointer;color:var(--muted);font-size:.75rem;line-height:1;padding:3px 7px;border-radius:3px;transition:all .15s;font-family:var(--mono);letter-spacing:1px;flex-shrink:0}
+.side-close:hover{background:rgba(255,60,60,.12);border-color:var(--red);color:var(--red)}
 .rd{padding:10px 12px;display:none;flex-direction:column;gap:8px;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .rd.show{display:flex}
 .rd-name{font-family:var(--head);font-size:.95rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
@@ -206,6 +206,33 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .send-btn:hover{filter:brightness(1.15);transform:scale(1.05)}
 .send-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
 
+/* ── Responsive breakpoints ── */
+@media (max-width:1280px) {
+  .chat-panel:not(.collapsed){width:260px}
+  .map-side.open{width:210px}
+  .alert-detail-panel{width:230px}
+}
+@media (max-width:1080px) {
+  .chat-panel:not(.collapsed){width:220px}
+  .map-side.open{width:180px}
+  .alert-detail-panel{width:200px}
+  .chat-hdr-content .chat-sub{display:none}
+}
+@media (max-width:900px) {
+  /* Auto-collapse chat to tab strip */
+  .chat-panel:not(.collapsed){width:38px}
+  .chat-panel:not(.collapsed) .chat-msgs,
+  .chat-panel:not(.collapsed) .chat-sugg,
+  .chat-panel:not(.collapsed) .chat-inp-wrap,
+  .chat-panel:not(.collapsed) .chat-hdr-content{display:none}
+  .chat-panel:not(.collapsed) .chat-collapsed-tab{display:flex}
+  /* Keep side panel usable but slimmer */
+  .map-side.open{width:200px}
+}
+@media (max-width:700px) {
+  .map-side.open{width:100%;position:absolute;top:0;right:0;bottom:0;z-index:800;border-left:none;border-right:1px solid var(--bdr)}
+}
+
 /* ── Charts in side panel ── */
 .chart-wrap{padding:8px 10px}
 .chart-ttl{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
@@ -217,6 +244,45 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .n1-btn.active{background:rgba(255,170,0,.15);border-color:var(--amber);color:var(--amber)}
 .n1-pulse{animation:n1blink 1s step-end infinite}
 @keyframes n1blink{50%{opacity:.4}}
+
+/* ── News tab ── */
+.news-view{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.news-toolbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0;flex-wrap:wrap}
+.news-hdr-lbl{font-family:var(--head);font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);flex:1;white-space:nowrap}
+.news-cats{display:flex;gap:4px;flex-wrap:wrap}
+.ncat{font-family:var(--mono);font-size:.58rem;padding:3px 9px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .15s;letter-spacing:1px}
+.ncat:hover{border-color:var(--accent);color:var(--accent)}
+.ncat.active{background:rgba(0,150,220,.12);border-color:var(--accent);color:var(--accent)}
+.news-refresh{font-family:var(--mono);font-size:.9rem;padding:3px 8px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .2s}
+.news-refresh:hover{color:var(--green);border-color:var(--green)}
+.news-refresh.spin{animation:spin .6s linear}
+@keyframes spin{to{transform:rotate(360deg)}}
+.news-body{display:flex;flex:1;overflow:hidden;gap:1px;background:var(--bdr)}
+.news-feed{width:320px;flex-shrink:0;overflow-y:auto;background:var(--bg)}
+.news-feed::-webkit-scrollbar{width:3px}
+.news-feed::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
+.news-detail{flex:1;overflow-y:auto;background:var(--bg)}
+.news-detail::-webkit-scrollbar{width:3px}
+.news-detail-empty{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
+.ni{padding:10px 12px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .15s;animation:slin .3s ease}
+.ni:hover{background:var(--surf)}
+.ni.active{background:var(--surf2);border-left:2px solid var(--accent)}
+.ni-cat{font-family:var(--mono);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;padding:1px 6px;border-radius:2px;display:inline-block;margin-bottom:4px}
+.ni-cat.outage{background:rgba(255,53,53,.12);color:var(--red);border:1px solid rgba(255,53,53,.3)}
+.ni-cat.weather{background:rgba(0,200,255,.1);color:var(--accent);border:1px solid rgba(0,200,255,.25)}
+.ni-cat.market{background:rgba(0,255,136,.08);color:var(--green);border:1px solid rgba(0,255,136,.25)}
+.ni-cat.reg{background:rgba(255,170,0,.1);color:var(--amber);border:1px solid rgba(255,170,0,.25)}
+.ni-ttl{font-size:.76rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:3px}
+.ni-meta{font-family:var(--mono);font-size:.58rem;color:var(--muted)}
+.nd-hdr{padding:16px 20px;border-bottom:1px solid var(--bdr)}
+.nd-cat{margin-bottom:8px}
+.nd-ttl{font-size:1rem;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:6px}
+.nd-meta{font-family:var(--mono);font-size:.6rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+.nd-body{padding:16px 20px;font-size:.78rem;color:var(--text);line-height:1.7}
+.nd-body p{margin:0 0 12px}
+.nd-body strong{color:var(--accent)}
+.nd-impact{margin:12px 0;padding:10px 14px;background:var(--surf2);border-left:3px solid var(--accent);border-radius:0 3px 3px 0;font-size:.74rem}
+.nd-impact-lbl{font-family:var(--mono);font-size:.54rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 
 /* ── Export button ── */
 .export-btn{font-family:var(--mono);font-size:.62rem;padding:4px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf2);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
@@ -265,6 +331,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
   <button class="tab" data-tab="provincias"  onclick="setTab('provincias')" ><span id="tlbl-prov">Provincias</span> <span class="tbadge">50</span></button>
   <button class="tab" data-tab="red"         onclick="setTab('red')"        ><span id="tlbl-red">Red de Transporte</span></button>
   <button class="tab" data-tab="alertas"     onclick="setTab('alertas')"    ><span id="tlbl-alerts">Alertas</span> <span class="tbadge warn" id="tc-alt">5</span></button>
+  <button class="tab" data-tab="noticias"    onclick="setTab('noticias')"   ><span id="tlbl-news">Noticias</span></button>
 </div>
 
 <div class="breadcrumb" id="breadcrumb">
@@ -370,6 +437,30 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
   </div>
 
+    <!-- NEWS -->
+    <div class="news-view" id="news-view" style="display:none">
+      <div class="news-toolbar">
+        <span id="lbl-news-hdr" class="news-hdr-lbl">Noticias del Sector Energético</span>
+        <div class="news-cats" id="news-cats">
+          <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
+          <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
+          <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
+          <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
+          <button class="ncat" onclick="filterNews('reg')" id="ncat-reg">Regulación</button>
+        </div>
+        <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn">↻</button>
+      </div>
+      <div class="news-body">
+        <div class="news-feed" id="news-feed"></div>
+        <div class="news-detail" id="news-detail">
+          <div class="news-detail-empty" id="news-detail-empty">
+            <span id="lbl-news-select">Selecciona un artículo para leer</span>
+          </div>
+          <div id="news-detail-body" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
   <!-- CHAT -->
   <div class="chat-panel" id="chat-panel">
     <div class="chat-hdr">
@@ -414,7 +505,7 @@ const T = {
     subtitle:'AI Grid Operations Assistant',
     demand:'Demanda', ren:'Renovable', freq:'Frecuencia', alerts:'Alertas',
     tab_nacional:'España Nacional', tab_ccaa:'Comunidades Autónomas',
-    tab_prov:'Provincias', tab_red:'Red de Transporte', tab_alerts:'Alertas',
+    tab_prov:'Provincias', tab_red:'Red de Transporte', tab_alerts:'Alertas', tab_news:'Noticias',
     select:'Selecciona una región', subtable:'Subestaciones', provinces:'Provincias',
     leg_ok:'Normal <80%', leg_warn:'Alta carga 80–95%', leg_fault:'Fallo / Crítico',
     leg_grid:'Red 400kV', leg_ave:'AVE Alta Velocidad', leg_ap:'Autopistas AP/A',
@@ -438,7 +529,7 @@ const T = {
     subtitle:'AI Grid Operations Assistant',
     demand:'Demand', ren:'Renewable', freq:'Frequency', alerts:'Alerts',
     tab_nacional:'Spain National', tab_ccaa:'Autonomous Communities',
-    tab_prov:'Provinces', tab_red:'Transport Network', tab_alerts:'Alerts',
+    tab_prov:'Provinces', tab_red:'Transport Network', tab_alerts:'Alerts', tab_news:'News',
     select:'Select a region', subtable:'Substations', provinces:'Provinces',
     leg_ok:'Normal <80%', leg_warn:'High load 80–95%', leg_fault:'Fault / Critical',
     leg_grid:'400kV Grid', leg_ave:'AVE High Speed Rail', leg_ap:'AP/A Motorways',
@@ -472,7 +563,7 @@ function applyLang() {
     'leg-ok':'leg_ok','leg-warn':'leg_warn','leg-fault':'leg_fault',
     'leg-grid':'leg_grid','leg-ave':'leg_ave','leg-ap':'leg_ap',
     'tlbl-nacional':'tab_nacional','tlbl-ccaa':'tab_ccaa','tlbl-prov':'tab_prov',
-    'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts',
+    'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts','tlbl-news':'tab_news',
     'q1':'q1','q2':'q2','q3':'q3','q4':'q4',
     'loading-txt':'loading',
   };
@@ -1225,6 +1316,14 @@ async function setTab(tab) {
   if (tab === 'alertas') {
     mapBody.style.display    = 'none';
     alertsView.style.display = 'flex';
+    document.getElementById('news-view').style.display = 'none';
+    return;
+  }
+  if (tab === 'noticias') {
+    mapBody.style.display    = 'none';
+    alertsView.style.display = 'none';
+    document.getElementById('news-view').style.display = 'flex';
+    renderNewsFeed();
     return;
   }
   mapBody.style.display    = 'flex';
@@ -1232,6 +1331,7 @@ async function setTab(tab) {
   mapLegend.style.display  = tab === 'red' ? 'none' : '';
   redLegend.style.display  = tab === 'red' ? ''     : 'none';
 
+  document.getElementById('news-view').style.display = 'none';
   if (tab === 'nacional') {
     loadNacional();
     map.flyTo([40.4,-3.7], 6, {duration:1});
@@ -2049,6 +2149,116 @@ function toggleChat() {
   panel.classList.toggle('collapsed', !chatOpen);
   if (btn) btn.textContent = chatOpen ? '›' : '‹';
   localStorage.setItem('eeChatOpen', chatOpen ? '1' : '0');
+}
+
+
+// NEWS TAB DATA + FUNCTIONS
+const newsData = [
+  { id:1, cat:'outage', age:'hace 12 min',
+    es:{ ttl:'Corte en linea L-4421 A Coruna-Ferrol', src:'REE Boletin Operativo',
+      body:'<p>Red Electrica ha confirmado un corte no programado en la linea 400kV L-4421. El equipo de operaciones ha activado protocolo N-1, redirigiendo flujo via L-4109 y L-4215. <strong>12.400 clientes</strong> afectados en zona norte A Coruna. Equipos de inspeccion aerea desplegados. Restablecimiento previsto en 2-4 horas.</p>',
+      impact:'12.400 clientes · Zona norte A Coruna · Duracion estimada 2-4h' },
+    en:{ ttl:'Unscheduled outage on line L-4421 A Coruna-Ferrol', src:'REE Operational Bulletin',
+      body:'<p>Red Electrica has confirmed an unscheduled outage on 400kV line L-4421. The operations team activated the N-1 contingency protocol, rerouting flow via L-4109 and L-4215. <strong>12,400 customers</strong> affected in north A Coruna. Aerial inspection teams deployed. Restoration expected in 2-4 hours.</p>',
+      impact:'12,400 customers · North A Coruna zone · Est. duration 2-4h' } },
+  { id:2, cat:'weather', age:'hace 28 min',
+    es:{ ttl:'Alerta naranja: vientos 90 km/h en Galicia y Cantabria', src:'AEMET · Aviso Nivel Naranja',
+      body:'<p>AEMET ha emitido aviso naranja por vientos en Galicia y Cantabria para las proximas 6 horas. Rachas de hasta <strong>90 km/h</strong> en zonas de montana. Puede afectar lineas de alta tension en los corredores A Coruna-Lugo y Santander-Bilbao. REE ha elevado estado de alerta a nivel 2.</p><p>Se recomienda preparar protocolos de desconexion preventiva si vientos superan 80 km/h sostenidos.</p>',
+      impact:'Corredores: A Coruna-Lugo, Santander-Bilbao · Nivel alerta REE: 2' },
+    en:{ ttl:'Orange alert: 90 km/h winds for Galicia and Cantabria', src:'AEMET · Orange Warning',
+      body:'<p>AEMET issued an orange wind warning for Galicia and Cantabria for the next 6 hours. Gusts up to <strong>90 km/h</strong> in mountain areas. May affect high-voltage lines on the A Coruna-Lugo and Santander-Bilbao corridors. REE has raised Control Centre alert to level 2.</p><p>Operators advised to prepare preventive disconnection protocols if sustained winds exceed 80 km/h.</p>',
+      impact:'Corridors: A Coruna-Lugo, Santander-Bilbao · REE alert level: 2' } },
+  { id:3, cat:'market', age:'hace 1h 04min',
+    es:{ ttl:'Precio pool cae a 42 EUR/MWh tras record de generacion eolica', src:'OMIE · Mercado Diario',
+      body:'<p>El precio del mercado diario ha caido a <strong>42,3 EUR/MWh</strong>, nivel mas bajo en 3 semanas, impulsado por generacion eolica que supera los 18.500 MW. Galicia, Castilla y Leon y Aragon concentran la mayor produccion con parques eolicos al 87% de capacidad.</p><p>Los gestores han activado restricciones de curtailment en nodos mas congestionados del norte para mantener estabilidad de frecuencia en 50 +/- 0,1 Hz.</p>',
+      impact:'Curtailment activo: ES11, ES41 · Frecuencia: 50.02 Hz · Excedente: 4.300 MW' },
+    en:{ ttl:'Pool price drops to EUR42/MWh after record wind generation', src:'OMIE · Day-Ahead Market',
+      body:'<p>Day-ahead price has fallen to <strong>EUR42.3/MWh</strong>, lowest in 3 weeks, driven by wind generation exceeding 18,500 MW. Galicia, Castilla y Leon and Aragon account for most output with wind farms at 87% capacity.</p><p>Grid managers have activated curtailment at the most congested northern nodes to maintain frequency stability within 50 +/- 0.1 Hz.</p>',
+      impact:'Curtailment active: ES11, ES41 · Frequency: 50.02 Hz · Surplus: 4,300 MW' } },
+  { id:4, cat:'reg', age:'hace 2h 15min',
+    es:{ ttl:'CNMC publica nueva metodologia para peajes de transporte 2025', src:'CNMC · Circular 2/2024',
+      body:'<p>La CNMC ha publicado la Circular 2/2024 que modifica la retribucion del transporte para 2025-2030. Cambios principales: <strong>incremento del 3,2% en peajes de acceso</strong> a la red 400kV, nueva estructura de incentivos por disponibilidad ligada a SAIDI/SAIFI, y mecanismo de compensacion por congestiones transfronterizas con Francia y Portugal.</p><p>La circular entra en vigor el 1 de enero de 2025.</p>',
+      impact:'Vigencia: 01/01/2025 · Incremento peajes: +3,2% · Plazo adaptacion: 15/12/2024' },
+    en:{ ttl:'CNMC publishes new methodology for 2025 transmission tariffs', src:'CNMC · Circular 2/2024',
+      body:'<p>The CNMC published Circular 2/2024, modifying transmission remuneration for 2025-2030. Key changes: <strong>3.2% increase in access charges</strong> for the 400kV network, new availability incentive structure linked to SAIDI/SAIFI, and a cross-border congestion compensation mechanism with France and Portugal.</p><p>Circular takes effect 1 January 2025.</p>',
+      impact:'Effective: 01/01/2025 · Tariff increase: +3.2% · Adaptation deadline: 15/12/2024' } },
+  { id:5, cat:'outage', age:'hace 3h 42min',
+    es:{ ttl:'Restablecido suministro en Valencia tras fallo en SE-Paterna', src:'Iberdrola Distribucion',
+      body:'<p>Iberdrola informa del restablecimiento completo en Paterna, Mislata y Quart de Poblet tras el fallo en la subestacion SE-Paterna 132/20kV. El incidente afecto a <strong>8.200 clientes</strong> durante 47 minutos. El disyuntor averiado ha sido sustituido y la instalacion ha superado pruebas de reposicion.</p>',
+      impact:'8.200 clientes · Duracion: 47 min · Estado actual: NORMALIZADO' },
+    en:{ ttl:'Supply restored in Valencia after fault at SE-Paterna substation', src:'Iberdrola Distribution',
+      body:'<p>Iberdrola reports full supply restoration in Paterna, Mislata and Quart de Poblet following the fault at SE-Paterna 132/20kV substation. The incident affected <strong>8,200 customers</strong> for a maximum 47 minutes. The faulty breaker has been replaced and installation has passed restoration tests.</p>',
+      impact:'8,200 customers · Duration: 47 min · Current status: NORMALISED' } },
+  { id:6, cat:'market', age:'hace 4h 55min',
+    es:{ ttl:'Espana exporta 1.840 MW a Francia por caida nuclear gala', src:'RTE / REE · Flujos Transfronterizos',
+      body:'<p>Los flujos transfronterizos registran exportacion neta de <strong>1.840 MW</strong> hacia Francia, aprovechando la reduccion temporal de disponibilidad nuclear francesa por mantenimiento de tres reactores. Esta situacion, combinada con el excedente eolico peninsular, genera oportunidad de exportacion que REE gestiona con RTE. Ingresos estimados superiores a 3,2 millones EUR.</p>',
+      impact:'Exportacion neta: 1.840 MW · Capacidad: 8.000 MW · Ingreso est: 3,2 M EUR' },
+    en:{ ttl:'Spain exports 1,840 MW to France amid French nuclear shortfall', src:'RTE / REE · Cross-Border Flows',
+      body:'<p>Cross-border flows record net export of <strong>1,840 MW</strong> to France, capitalising on reduced French nuclear availability due to maintenance of three reactors. Combined with peninsular wind surplus, this creates an export opportunity REE is managing with RTE. Estimated revenues exceed EUR3.2 million.</p>',
+      impact:'Net export: 1,840 MW · Capacity: 8,000 MW · Est. revenue: EUR3.2M' } },
+  { id:7, cat:'reg', age:'hace 6h 18min',
+    es:{ ttl:'Ministerio aprueba 14 parques eolicos marinos en el Atlantico', src:'MITECO · Resolucion DGE',
+      body:'<p>El Ministerio para la Transicion Ecologica ha aprobado 14 parques eolicos marinos en el Atlantico norte con <strong>6.800 MW</strong> y 9.400 millones EUR de inversion. Ubicados en Galicia (4.200 MW), Asturias (1.600 MW) y Cantabria (1.000 MW), con entrada en operacion entre 2027 y 2031. Contribuye al objetivo del 81% de generacion renovable en 2030 del PNIEC.</p>',
+      impact:'Capacidad nueva: 6.800 MW offshore · Inversion: 9.400 M EUR · Entrada: 2027-2031' },
+    en:{ ttl:'Ministry approves 14 offshore wind farms in the Atlantic', src:'MITECO · DGE Resolution',
+      body:'<p>The Ministry for Ecological Transition approved 14 offshore wind farms in the north Atlantic with <strong>6,800 MW</strong> and EUR9.4bn investment. Located in Galicia (4,200 MW), Asturias (1,600 MW) and Cantabria (1,000 MW), with phased commissioning 2027-2031. Contributes to the PNIEC 81% renewable generation target for 2030.</p>',
+      impact:'New capacity: 6,800 MW offshore · Investment: EUR9.4bn · Commissioning: 2027-2031' } },
+  { id:8, cat:'weather', age:'hace 8h 33min',
+    es:{ ttl:'Ola de calor en Andalucia: demanda podria batir record historico', src:'AEMET / REE · Prevision Operativa',
+      body:'<p>Los modelos meteorologicos preveen ola de calor intensa en Andalucia, Extremadura y Murcia durante 4 dias, con temperaturas hasta <strong>44 grados C</strong> en el interior. REE estima demanda que podria superar los 12.800 MW el martes, nuevo record historico. Se ha activado el Plan de Gestion de Demanda de Verano.</p><p>Se recomienda maximizar disponibilidad de grupos de respaldo y revisar estado de transformadores en zonas afectadas.</p>',
+      impact:'Demanda pico estimada: 12.800 MW · Max historico: 12.540 MW · Dia critico: martes' },
+    en:{ ttl:'Heatwave in Andalusia: demand could break historic record', src:'AEMET / REE · Operational Forecast',
+      body:'<p>Weather models forecast intense heatwave in Andalusia, Extremadura and Murcia for 4 days, with temperatures potentially reaching <strong>44 degrees C</strong> inland. REE estimates demand could exceed 12,800 MW next Tuesday, a new historical record. The Summer Demand Management Plan has been activated.</p><p>Operators advised to maximise backup generation availability and review power transformer condition in affected areas.</p>',
+      impact:'Peak demand estimate: 12,800 MW · Historical max: 12,540 MW · Critical day: Tuesday' } },
+];
+
+let newsFilter = 'all';
+let activeNewsId = null;
+
+function renderNewsFeed() {
+  const feed = document.getElementById('news-feed');
+  if (!feed) return;
+  const filtered = newsFilter === 'all' ? newsData : newsData.filter(n => n.cat === newsFilter);
+  const CL = {outage:lang==='es'?'CORTE':'OUTAGE', weather:lang==='es'?'METEO':'WEATHER', market:lang==='es'?'MERCADO':'MARKET', reg:lang==='es'?'REGULACION':'REGULATION'};
+  feed.innerHTML = filtered.map(n => {
+    const d = n[lang] || n.es;
+    return '<div class="ni'+(n.id===activeNewsId?' active':'')+'" onclick="showNewsDetail('+n.id+')"><div><span class="ni-cat '+n.cat+'">'+CL[n.cat]+'</span></div><div class="ni-ttl">'+d.ttl+'</div><div class="ni-meta">'+d.src+' · '+n.age+'</div></div>';
+  }).join('') || '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">'+(lang==='es'?'Sin articulos':'No articles')+'</div>';
+}
+
+function showNewsDetail(id) {
+  activeNewsId = id;
+  const n = newsData.find(function(x){return x.id===id;});
+  if (!n) return;
+  const d = n[lang] || n.es;
+  const CL = {outage:lang==='es'?'CORTE':'OUTAGE', weather:lang==='es'?'METEO':'WEATHER', market:lang==='es'?'MERCADO':'MARKET', reg:lang==='es'?'REGULACION':'REGULATION'};
+  document.getElementById('news-detail-empty').style.display = 'none';
+  const body = document.getElementById('news-detail-body');
+  body.style.display = '';
+  body.innerHTML = '<div class="nd-hdr"><div class="nd-cat"><span class="ni-cat '+n.cat+'">'+CL[n.cat]+'</span></div><div class="nd-ttl">'+d.ttl+'</div><div class="nd-meta"><span>&#x1F4F0; '+d.src+'</span> <span>&#x1F550; '+n.age+'</span></div></div><div class="nd-body">'+d.body+'<div class="nd-impact"><div class="nd-impact-lbl">'+(lang==='es'?'Impacto operativo':'Operational impact')+'</div>'+d.impact+'</div></div>';
+  renderNewsFeed();
+}
+
+function filterNews(cat) {
+  newsFilter = cat;
+  document.querySelectorAll('.ncat').forEach(function(b){b.classList.remove('active');});
+  const btn = document.getElementById('ncat-'+cat);
+  if (btn) btn.classList.add('active');
+  activeNewsId = null;
+  document.getElementById('news-detail-empty').style.display = '';
+  document.getElementById('news-detail-body').style.display = 'none';
+  renderNewsFeed();
+}
+
+function refreshNews() {
+  const btn = document.getElementById('news-refresh-btn');
+  if (!btn) return;
+  btn.classList.add('spin');
+  setTimeout(function() {
+    btn.classList.remove('spin');
+    newsData.forEach(function(n){const m=Math.floor(Math.random()*5)+1; n.age=lang==='es'?'hace '+m+' min':m+' min ago';});
+    renderNewsFeed();
+  }, 700);
 }
 
 // ─── INIT ───
