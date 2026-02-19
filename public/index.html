@@ -200,6 +200,13 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .chat-sugg{padding:0 11px 8px;display:flex;flex-direction:column;gap:4px}
 .sugg{background:var(--surf);border:1px solid var(--bdr);border-radius:3px;padding:6px 10px;font-size:.7rem;color:var(--muted);cursor:pointer;text-align:left;transition:all .15s;font-family:var(--body)}
 .sugg:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,150,220,.04)}
+.chat-tabs-bar{display:flex;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
+.chat-tab{flex:1;padding:5px;font-family:var(--mono);font-size:.6rem;letter-spacing:.5px;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.chat-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.chat-faq{flex:1;overflow-y:auto;padding:8px 11px;display:flex;flex-direction:column;gap:3px}
+.faq-cat{font-family:var(--mono);font-size:.5rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:8px 0 3px;padding-left:2px}
+.faq-cat:first-child{margin-top:2px}
+.chat-panel.collapsed .chat-tabs-bar{display:none}
 .chat-inp-wrap{padding:9px 11px;border-top:1px solid var(--bdr);background:var(--surf);display:flex;gap:7px;flex-shrink:0}
 .chat-inp{flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;padding:7px 10px;color:var(--text);font-family:var(--body);font-size:.76rem;resize:none;outline:none;min-height:34px;max-height:80px;transition:border-color .2s}
 .chat-inp:focus{border-color:var(--accent)}
@@ -374,23 +381,23 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
           <div class="leg-r"><div class="leg-line" style="background:#ff3535;height:2px;border-top:1px dashed #ff3535;background:none;border-bottom:none"></div><span id="leg-ave">AVE Alta Velocidad</span></div>
           <div class="leg-r"><div class="leg-line" style="background:#ffaa00"></div><span id="leg-ap">Autopistas AP/A</span></div>
         </div>
+
+        <!-- NEWS FEED PANEL — inside map-wrap (position:relative) -->
+        <div id="news-feed-panel" style="display:none;position:absolute;top:0;left:0;bottom:0;width:300px;z-index:600;background:var(--bg);border-right:1px solid var(--bdr);flex-direction:column;overflow:hidden">
+          <div style="flex:1;overflow-y:auto" id="news-feed"></div>
+        </div>
+        <!-- NEWS DETAIL PANEL — slides in from right -->
+        <div id="news-detail-panel" style="display:none;position:absolute;top:0;right:0;bottom:0;width:340px;z-index:600;background:var(--bg);border-left:1px solid var(--bdr);flex-direction:column;overflow:hidden">
+          <div style="flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
+            <button class="panel-al-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
+            <button class="side-close" onclick="closeNewsDetail()">✕</button>
+          </div>
+          <div id="news-detail-body" style="overflow-y:auto;flex:1;padding:0"></div>
+        </div>
       </div>
 
       <!-- N-1 TOGGLE -->
       <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
-
-      <!-- NEWS FEED PANEL — floats over map when noticias tab active -->
-      <div id="news-feed-panel" style="display:none;position:absolute;top:0;left:0;bottom:0;width:300px;z-index:600;background:var(--bg);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden">
-        <div style="flex:1;overflow-y:auto" id="news-feed"></div>
-      </div>
-      <!-- NEWS DETAIL PANEL — floats on right when article selected -->
-      <div id="news-detail-panel" style="display:none;position:absolute;top:0;right:0;bottom:0;width:340px;z-index:600;background:var(--bg);border-left:1px solid var(--bdr);flex-direction:column;overflow:hidden">
-        <div style="flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
-          <button class="panel-al-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
-          <button class="side-close" onclick="closeNewsDetail()">✕</button>
-        </div>
-        <div id="news-detail-body" style="overflow-y:auto;flex:1;padding:0"></div>
-      </div>
 
       <!-- SIDE PANEL -->
       <div class="map-side" id="map-side">
@@ -488,12 +495,20 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
         <div class="bubble" id="welcome-bubble"></div>
       </div>
     </div>
+    <!-- Chat / FAQ tabs -->
+    <div class="chat-tabs-bar" id="chat-tabs-bar">
+      <button class="chat-tab active" id="ctab-chat" onclick="setChatTab('chat')">Chat</button>
+      <button class="chat-tab" id="ctab-faq" onclick="setChatTab('faq')">FAQ</button>
+    </div>
+    <!-- Suggested questions (show under chat tab initially) -->
     <div class="chat-sugg" id="chat-sugg">
       <button class="sugg" onclick="sendSugg(this)" id="q1"></button>
       <button class="sugg" onclick="sendSugg(this)" id="q2"></button>
       <button class="sugg" onclick="sendSugg(this)" id="q3"></button>
       <button class="sugg" onclick="sendSugg(this)" id="q4"></button>
     </div>
+    <!-- FAQ panel — always visible on FAQ tab -->
+    <div class="chat-faq" id="chat-faq" style="display:none"></div>
     <div class="chat-inp-wrap">
       <textarea class="chat-inp" id="chat-inp" rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"
@@ -1664,10 +1679,68 @@ async function sendMsg() {
   const inp = document.getElementById('chat-inp');
   const txt = inp.value.trim(); if(!txt) return;
   inp.value = ''; inp.style.height = 'auto';
-  document.getElementById('chat-sugg').style.display = 'none';
+  // suggestions stay visible
   sendAuto(txt);
 }
+
+const FAQ_DATA = [
+  { cat: 'Red Eléctrica', items: [
+    '¿Cuál es la frecuencia actual de la red?',
+    '¿Qué regiones tienen mayor carga ahora?',
+    '¿Cómo está el balance de generación?',
+    '¿Qué porcentaje es renovable hoy?',
+  ]},
+  { cat: 'Alertas & Incidencias', items: [
+    '¿Hay alguna alerta P1 activa?',
+    '¿Cuáles son las incidencias más críticas?',
+    'Muéstrame las alertas de Galicia',
+    '¿Cuándo se resolverá la incidencia en Madrid?',
+  ]},
+  { cat: 'Mercado & Precios', items: [
+    '¿Cuál es el precio pool hoy?',
+    '¿Cuándo es el precio más caro del día?',
+    'Explica la diferencia entre pool y tarifa',
+    '¿Cómo afecta el viento al precio?',
+  ]},
+  { cat: 'Generación', items: [
+    '¿Qué centrales están operando ahora?',
+    '¿Cuánta energía eólica se genera hoy?',
+    '¿Están las nucleares en plena potencia?',
+    'Explica el mix de generación actual',
+  ]},
+];
+
+function renderFAQ() {
+  const el = document.getElementById('chat-faq');
+  if (!el) return;
+  el.innerHTML = FAQ_DATA.map(cat =>
+    '<div class="faq-cat">' + cat.cat + '</div>' +
+    cat.items.map(q =>
+      '<button class="sugg" onclick="sendSugg(this)">' + q + '</button>'
+    ).join('')
+  ).join('');
+}
+
+function setChatTab(tab) {
+  document.getElementById('ctab-chat').classList.toggle('active', tab === 'chat');
+  document.getElementById('ctab-faq').classList.toggle('active', tab === 'faq');
+  const sugg = document.getElementById('chat-sugg');
+  const faq  = document.getElementById('chat-faq');
+  const msgs = document.getElementById('chat-msgs');
+  if (tab === 'chat') {
+    if (sugg) sugg.style.display = '';
+    if (faq)  faq.style.display  = 'none';
+    if (msgs) msgs.style.display = '';
+  } else {
+    if (sugg) sugg.style.display = 'none';
+    if (faq)  faq.style.display  = '';
+    if (msgs) msgs.style.display = 'none';
+    renderFAQ();
+  }
+}
+
 function sendSugg(btn) {
+  setChatTab('chat');
   document.getElementById('chat-inp').value = btn.textContent.trim();
   sendMsg();
 }
