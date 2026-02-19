@@ -5,6 +5,18 @@ const path    = require('path');
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
+// CORS — allow any localhost origin (Windsurf live server, etc)
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '';
+  if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: false, lastModified: false,

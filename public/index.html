@@ -263,11 +263,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .news-feed{width:320px;flex-shrink:0;overflow-y:auto;background:var(--bg)}
 .news-feed::-webkit-scrollbar{width:3px}
 .news-feed::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
-.news-right{flex:1;display:flex;flex-direction:column;overflow:hidden;gap:1px;background:var(--bdr)}
-.news-map-wrap{height:220px;flex-shrink:0;position:relative;background:var(--bg)}
-#news-map{width:100%;height:100%}
-.news-map-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.6rem;color:var(--muted);pointer-events:none;text-align:center;padding:8px}
-.news-detail{flex:1;overflow-y:auto;background:var(--bg)}
+.news-detail{overflow-y:auto;background:var(--bg)}
 .news-detail::-webkit-scrollbar{width:3px}
 .news-detail-empty{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
 .ni{padding:10px 12px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .15s;animation:slin .3s ease}
@@ -383,6 +379,19 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       <!-- N-1 TOGGLE -->
       <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
 
+      <!-- NEWS FEED PANEL — floats over map when noticias tab active -->
+      <div id="news-feed-panel" style="display:none;position:absolute;top:0;left:0;bottom:0;width:300px;z-index:600;background:var(--bg);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden">
+        <div style="flex:1;overflow-y:auto" id="news-feed"></div>
+      </div>
+      <!-- NEWS DETAIL PANEL — floats on right when article selected -->
+      <div id="news-detail-panel" style="display:none;position:absolute;top:0;right:0;bottom:0;width:340px;z-index:600;background:var(--bg);border-left:1px solid var(--bdr);flex-direction:column;overflow:hidden">
+        <div style="flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
+          <button class="panel-al-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
+          <button class="side-close" onclick="closeNewsDetail()">✕</button>
+        </div>
+        <div id="news-detail-body" style="overflow-y:auto;flex:1;padding:0"></div>
+      </div>
+
       <!-- SIDE PANEL -->
       <div class="map-side" id="map-side">
         <!-- Fixed header with close button -->
@@ -450,34 +459,17 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
   </div>
 
-    <!-- NEWS -->
-    <div class="news-view" id="news-view" style="display:none">
-      <div class="news-toolbar">
-        <span id="lbl-news-hdr" class="news-hdr-lbl">Noticias del Sector Energético</span>
-        <div class="news-cats" id="news-cats">
-          <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
-          <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
-          <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
-          <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
-          <button class="ncat" onclick="filterNews('reg')" id="ncat-reg">Regulación</button>
-        </div>
-        <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn">↻</button>
+    <!-- NEWS overlay toolbar (sits above map-body, controlled by setTab) -->
+    <div id="news-toolbar-bar" style="display:none;flex-shrink:0;flex-direction:row;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--bdr);background:var(--surf)">
+      <span class="news-hdr-lbl" id="lbl-news-hdr">Noticias del Sector Energético</span>
+      <div class="news-cats">
+        <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
+        <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
+        <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
+        <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
+        <button class="ncat" onclick="filterNews('reg')" id="ncat-reg">Regulación</button>
       </div>
-      <div class="news-body">
-        <div class="news-feed" id="news-feed"></div>
-        <div class="news-right">
-          <div class="news-map-wrap" id="news-map-wrap">
-            <div id="news-map"></div>
-            <div class="news-map-hint" id="news-map-hint">Selecciona un artículo para ver la ubicación</div>
-          </div>
-          <div class="news-detail" id="news-detail">
-            <div class="news-detail-empty" id="news-detail-empty">
-              <span id="lbl-news-select">Selecciona un artículo para leer</span>
-            </div>
-            <div id="news-detail-body" style="display:none"></div>
-          </div>
-        </div>
-      </div>
+      <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn" title="Actualizar">↻</button>
     </div>
 
   <!-- CHAT -->
@@ -1320,6 +1312,14 @@ function loadNacional() {
 
 async function setTab(tab) {
   if (tab === currentTab) return;
+  // Hide news overlays
+  const ntb = document.getElementById('news-toolbar-bar');
+  const nfp2 = document.getElementById('news-feed-panel');
+  const ndp = document.getElementById('news-detail-panel');
+  if (ntb) ntb.style.display = 'none';
+  if (nfp2) nfp2.style.display = 'none';
+  if (ndp) ndp.style.display = 'none';
+  clearNewsMapMarkers();
   // Hide N-1 when leaving transport tab
   if (currentTab === 'red') showN1Button(false);
   currentTab = tab;
@@ -1335,14 +1335,12 @@ async function setTab(tab) {
   if (tab === 'alertas') {
     mapBody.style.display    = 'none';
     alertsView.style.display = 'flex';
-    document.getElementById('news-view').style.display = 'none';
     return;
   }
   if (tab === 'noticias') {
     mapBody.style.display    = 'none';
     alertsView.style.display = 'none';
-    document.getElementById('news-view').style.display = 'flex';
-    renderNewsFeed();
+        renderNewsFeed();
     return;
   }
   mapBody.style.display    = 'flex';
@@ -1350,8 +1348,7 @@ async function setTab(tab) {
   mapLegend.style.display  = tab === 'red' ? 'none' : '';
   redLegend.style.display  = tab === 'red' ? ''     : 'none';
 
-  document.getElementById('news-view').style.display = 'none';
-  if (tab === 'nacional') {
+    if (tab === 'nacional') {
     loadNacional();
     map.flyTo([40.4,-3.7], 6, {duration:1});
   } else if (tab === 'comunidades') {
@@ -2180,8 +2177,18 @@ function toggleChat() {
 let newsArticles = [];
 let newsFilter = 'all';
 let activeNewsId = null;
-let newsMap = null;
 let newsMarkers = [];
+
+function clearNewsMapMarkers() {
+  newsMarkers.forEach(m => map && map.removeLayer(m));
+  newsMarkers = [];
+}
+
+function closeNewsDetail() {
+  activeNewsId = null;
+  document.getElementById('news-detail-panel').style.display = 'none';
+  renderNewsFeed();
+}
 
 async function loadNews(force) {
   const feed = document.getElementById('news-feed');
@@ -2200,37 +2207,22 @@ async function loadNews(force) {
   }
 }
 
-function initNewsMap() {
-  if (newsMap) return;
-  const el = document.getElementById('news-map');
-  if (!el || !window.L) return;
-  newsMap = L.map('news-map', { zoomControl: true, attributionControl: false });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(newsMap);
-  // Apply same dark filter as main map
-  if (!document.body.classList.contains('light')) {
-    document.querySelectorAll('#news-map .leaflet-tile').forEach(t => t.style.filter = 'brightness(.28) saturate(.3) hue-rotate(195deg)');
-  }
-  newsMap.setView([40.4, -3.7], 5);
-  setTimeout(() => newsMap.invalidateSize(), 100);
-}
-
 function renderNewsMapMarkers() {
-  if (!newsMap) return;
-  newsMarkers.forEach(m => m.remove());
-  newsMarkers = [];
+  if (!map) return;
+  clearNewsMapMarkers();
   const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
   const catColors = { outage:'#ff3535', weather:'#00c8ff', market:'#00ff88', reg:'#ffaa00' };
   filtered.forEach(n => {
     const col = catColors[n.cat] || '#aaa';
     const icon = L.divIcon({
       className: '',
-      html: `<div style="width:10px;height:10px;border-radius:50%;background:${col};border:2px solid rgba(0,0,0,.4);box-shadow:0 0 6px ${col}"></div>`,
-      iconSize: [10, 10], iconAnchor: [5, 5]
+      html: '<div style="width:12px;height:12px;border-radius:50%;background:' + col + ';border:2px solid rgba(0,0,0,.5);box-shadow:0 0 8px ' + col + ';cursor:pointer"></div>',
+      iconSize: [12, 12], iconAnchor: [6, 6]
     });
     const m = L.marker([n.lat, n.lon], { icon })
-      .addTo(newsMap)
+      .addTo(map)
       .on('click', () => showNewsDetail(n.id));
-    m.bindTooltip(n.title.slice(0, 50) + (n.title.length > 50 ? '...' : ''), { permanent: false, direction: 'top' });
+    m.bindTooltip(n.title.slice(0, 55) + (n.title.length > 55 ? '...' : ''), { permanent: false, direction: 'top', className: 'leaflet-tooltip' });
     newsMarkers.push(m);
   });
 }
@@ -2258,13 +2250,14 @@ function showNewsDetail(id) {
   const n = newsArticles.find(x => x.id === id);
   if (!n) return;
   const CL = { outage:'CORTE', weather:'METEO', market:'MERCADO', reg:'REGULACIÓN' };
-  
-  // Fly map to location
-  if (newsMap) {
-    newsMap.flyTo([n.lat, n.lon], n.locName === 'España' ? 6 : 9, { duration: 0.8 });
-  }
-  
-  document.getElementById('news-detail-empty').style.display = 'none';
+
+  // Fly MAIN map to location
+  if (map) map.flyTo([n.lat, n.lon], n.locName === 'España' ? 6 : 9, { duration: 0.8 });
+
+  // Show detail panel
+  const panel = document.getElementById('news-detail-panel');
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
   const body = document.getElementById('news-detail-body');
   body.style.display = '';
   body.innerHTML =
@@ -2290,8 +2283,8 @@ function filterNews(cat) {
   const btn = document.getElementById('ncat-' + cat);
   if (btn) btn.classList.add('active');
   activeNewsId = null;
-  document.getElementById('news-detail-empty').style.display = '';
-  document.getElementById('news-detail-body').style.display = 'none';
+  const ndp2 = document.getElementById('news-detail-panel');
+  if (ndp2) ndp2.style.display = 'none';
   renderNewsFeed();
   renderNewsMapMarkers();
 }
