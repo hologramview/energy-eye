@@ -7,7 +7,6 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve static files — no caching during dev
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: false,
   lastModified: false,
@@ -17,6 +16,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // ─── AI Chat — OpenAI GPT-4o ──────────────────────────────────────────────────
 app.post('/api/chat', async (req, res) => {
   const { messages, system } = req.body;
+  console.log('[/api/chat] messages count:', messages?.length, '| system length:', system?.length);
   try {
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -34,10 +34,11 @@ app.post('/api/chat', async (req, res) => {
       }),
     });
     const data = await r.json();
+    console.log('[/api/chat] OpenAI status:', r.status, data.error ? '| ERROR: '+data.error.message : '| OK');
     if (data.error) return res.status(500).json({ error: data.error.message });
-    // Return in same shape the frontend expects: data.content[0].text
     res.json({ content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }] });
   } catch (e) {
+    console.error('[/api/chat] CATCH:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

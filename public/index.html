@@ -87,9 +87,12 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .leg-line{width:20px;height:3px;flex-shrink:0;border-radius:2px}
 
 /* SIDE PANEL */
-.map-side{width:238px;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+.map-side{width:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;transition:width .22s ease;flex-shrink:0;border-left:1px solid transparent}
+.map-side.open{width:238px;border-left-color:var(--bdr)}
 .side-ttl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:8px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .side-ttl::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.side-close{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--muted);font-size:.9rem;line-height:1;padding:0 2px;transition:color .15s}
+.side-close:hover{color:var(--red)}
 .rd{padding:10px 12px;display:none;flex-direction:column;gap:8px;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .rd.show{display:flex}
 .rd-name{font-family:var(--head);font-size:.95rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
@@ -152,8 +155,15 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .loading-dots{display:flex;gap:6px}
 
 /* CHAT */
-.chat-panel{width:305px;display:flex;flex-direction:column;background:var(--bg)}
-.chat-hdr{padding:11px 15px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0}
+.chat-panel{width:305px;display:flex;flex-direction:column;background:var(--bg);transition:width .22s ease;overflow:hidden;flex-shrink:0}
+.chat-panel.collapsed{width:38px}
+.chat-hdr{padding:11px 15px;border-bottom:1px solid var(--bdr);background:var(--surf);flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.chat-hdr-content{flex:1;min-width:0}
+.chat-toggle{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;padding:0;transition:color .15s;flex-shrink:0;line-height:1}
+.chat-toggle:hover{color:var(--accent)}
+.chat-panel.collapsed .chat-msgs,.chat-panel.collapsed .chat-sugg,.chat-panel.collapsed .chat-inp-wrap,.chat-panel.collapsed .chat-hdr-content,.chat-panel.collapsed .chat-sub{display:none}
+.chat-collapsed-tab{display:none;writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--head);font-size:.7rem;font-weight:700;letter-spacing:2px;color:var(--accent);cursor:pointer;padding:12px 0;width:38px;align-items:center;justify-content:center;border-left:1px solid var(--bdr);height:100%}
+.chat-panel.collapsed .chat-collapsed-tab{display:flex}
 .chat-ttl{font-family:var(--head);font-size:.88rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:8px}
 .chat-ttl::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.5s step-end infinite}
 .chat-sub{font-size:.62rem;color:var(--muted);letter-spacing:1px;margin-top:2px}
@@ -284,8 +294,8 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
 
       <!-- SIDE PANEL -->
-      <div class="map-side">
-        <div class="side-ttl" id="side-ttl"><span id="lbl-select">Selecciona una región</span></div>
+      <div class="map-side" id="map-side">
+        <div class="side-ttl" id="side-ttl"><span id="lbl-select">Selecciona una región</span><button class="side-close" onclick="closeSidePanel()" title="Cerrar">✕</button></div>
         <div class="rd" id="region-detail"></div>
         <div class="side-ttl"><span id="lbl-subtable">Subestaciones</span></div>
         <div class="sub-list" id="sub-list">
@@ -333,11 +343,15 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
   </div>
 
   <!-- CHAT -->
-  <div class="chat-panel">
+  <div class="chat-panel" id="chat-panel">
     <div class="chat-hdr">
-      <div class="chat-ttl">AI Assistant</div>
-      <div class="chat-sub" id="lbl-chat-sub">Conectado · Red Eléctrica España</div>
+      <div class="chat-hdr-content">
+        <div class="chat-ttl">AI Assistant</div>
+        <div class="chat-sub" id="lbl-chat-sub">Conectado · Red Eléctrica España</div>
+      </div>
+      <button class="chat-toggle" id="chat-toggle" onclick="toggleChat()" title="Ocultar">‹</button>
     </div>
+    <div class="chat-collapsed-tab" onclick="toggleChat()">AI ASSISTANT</div>
     <div class="chat-msgs" id="chat-msgs">
       <div class="msg ai">
         <div class="msg-role" id="lbl-ai-role">Energy Eye AI</div>
@@ -991,7 +1005,8 @@ function loadRed() {
   // ── SIDE PANEL BUILDER ────────────────────────────────────────
 
   function showRedPanel(type, name, d) {
-    document.getElementById('side-ttl').innerHTML =
+    openSidePanel();
+  document.getElementById('side-ttl').innerHTML =
       `<span style="color:var(--accent)">${name[lang]||name.es}</span>`;
     const rd = document.getElementById('region-detail');
     rd.className = 'rd show';
@@ -1207,6 +1222,7 @@ function selectCCAA(id, layer) {
   const d = ccaaData[id]; if(!d) return;
   const col = sCol(d.status, d.load);
   // Side panel
+  openSidePanel();
   document.getElementById('side-ttl').innerHTML =
     `<span style="color:var(--accent)">${d.name}</span>`;
   const rd = document.getElementById('region-detail');
@@ -1244,6 +1260,7 @@ function selectProv(id, layer) {
   const d = provData[id]; if(!d) return;
   const parent = ccaaData[d.nuts2];
   const col    = sCol(d.status, d.load);
+  openSidePanel();
   document.getElementById('side-ttl').innerHTML = `<span style="color:var(--accent)">${d.name}</span>`;
   const rd = document.getElementById('region-detail');
   rd.className = 'rd show';
@@ -1303,6 +1320,7 @@ function showBreadcrumb(region, prov) {
 function resetView() {
   showBreadcrumb('', '');
   map.flyTo([40.4,-3.7], 6, {duration:1.2});
+  openSidePanel();
   document.getElementById('side-ttl').innerHTML = `<span id="lbl-select">${t('select')}</span>`;
   document.getElementById('region-detail').className = 'rd';
   renderSubList([]);
@@ -1438,18 +1456,33 @@ async function callAI() {
   const bubble = appendMsg('ai', '', true);
   document.getElementById('send-btn').disabled = true;
   try {
+    // Build payload — catch serialisation errors separately
+    let body;
+    try {
+      const sys = gridCtx();
+      console.log('[callAI] system length:', sys.length, '| history:', chatHistory.length);
+      body = JSON.stringify({ system: sys, messages: chatHistory });
+    } catch(serr) {
+      throw new Error('Payload build failed: ' + serr.message);
+    }
     const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ system: gridCtx(), messages: chatHistory }),
+      body,
     });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`HTTP ${res.status}: ${txt.slice(0,200)}`);
+    }
     const data = await res.json();
+    if (data.error) throw new Error(data.error);
     const reply = data.content?.[0]?.text || 'No response.';
     bubble.classList.remove('typing');
     bubble.textContent = reply;
     chatHistory.push({role:'assistant', content:reply});
   } catch(e) {
     bubble.classList.remove('typing');
-    bubble.textContent = '⚠ Connection error.';
+    bubble.textContent = '⚠ ' + (e.message || 'Connection error');
+    console.error('[callAI] ERROR:', e.message, e);
   }
   document.getElementById('send-btn').disabled = false;
   document.getElementById('chat-msgs').scrollTop = 9999;
@@ -1858,9 +1891,40 @@ function exportReport() {
 }
 
 
+
+// ─── PANEL VISIBILITY ──────────────────────────────────────────────────────
+function openSidePanel() {
+  document.getElementById('map-side').classList.add('open');
+}
+function closeSidePanel() {
+  document.getElementById('map-side').classList.remove('open');
+  // Clear charts & state so fresh on next open
+  if (mixChart)      { mixChart.destroy();      mixChart = null; }
+  if (forecastChart) { forecastChart.destroy();  forecastChart = null; }
+  document.getElementById('mix-section').style.display = 'none';
+  document.getElementById('forecast-section').style.display = 'none';
+}
+
+let chatOpen = true;
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const panel = document.getElementById('chat-panel');
+  const btn   = document.getElementById('chat-toggle');
+  panel.classList.toggle('collapsed', !chatOpen);
+  if (btn) btn.textContent = chatOpen ? '›' : '‹';
+  localStorage.setItem('eeChatOpen', chatOpen ? '1' : '0');
+}
+
 // ─── INIT ───
 document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES',{hour12:false});
 applyLang();
+// Restore chat panel state
+chatOpen = localStorage.getItem('eeChatOpen') !== '0';
+if (!chatOpen) {
+  document.getElementById('chat-panel').classList.add('collapsed');
+  const btn = document.getElementById('chat-toggle');
+  if (btn) btn.textContent = '‹';
+}
 // ── Apply saved theme on startup ──
 document.body.classList.toggle('light', theme === 'light');
 document.getElementById('theme-btn').textContent = theme === 'dark' ? '☀' : '☾';
