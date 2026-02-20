@@ -121,27 +121,51 @@ const LOCATIONS = {
   'ascó':            {lat:41.2,lon:0.57,reg:'Cataluña'},
   'vandellós':       {lat:40.93,lon:0.87,reg:'Cataluña'},
   'trillo':          {lat:40.69,lon:-2.58,reg:'Castilla-La Mancha'},
-  // Special
-  'europa':          {lat:48.5,lon:2.3,reg:'Europa'},
-  'france':          {lat:46.5,lon:2.3,reg:'Francia'},
-  'francia':         {lat:46.5,lon:2.3,reg:'Francia'},
-  'portugal':        {lat:39.5,lon:-8.0,reg:'Portugal'},
-  'madrid':          {lat:40.42,lon:-3.7,reg:'Madrid'},
-  'españa':          {lat:40.4,lon:-3.7,reg:'España'},
-  'spain':           {lat:40.4,lon:-3.7,reg:'España'},
+  // Special / international
+  'europa':          {lat:48.5, lon:2.3,   reg:'Europa',          global:true},
+  'europe':          {lat:48.5, lon:2.3,   reg:'Europe',          global:true},
+  'france':          {lat:46.5, lon:2.3,   reg:'France',          global:true},
+  'francia':         {lat:46.5, lon:2.3,   reg:'Francia',         global:true},
+  'portugal':        {lat:39.5, lon:-8.0,  reg:'Portugal',        global:true},
+  'germany':         {lat:51.2, lon:10.4,  reg:'Germany',         global:true},
+  'alemania':        {lat:51.2, lon:10.4,  reg:'Alemania',        global:true},
+  'uk':              {lat:52.4, lon:-1.9,  reg:'United Kingdom',  global:true},
+  'united kingdom':  {lat:52.4, lon:-1.9,  reg:'United Kingdom',  global:true},
+  'italia':          {lat:42.5, lon:12.5,  reg:'Italy',           global:true},
+  'italy':           {lat:42.5, lon:12.5,  reg:'Italy',           global:true},
+  'china':           {lat:35.0, lon:105.0, reg:'China',           global:true},
+  'india':           {lat:22.0, lon:79.0,  reg:'India',           global:true},
+  'usa':             {lat:39.0, lon:-98.0, reg:'USA',             global:true},
+  'united states':   {lat:39.0, lon:-98.0, reg:'USA',             global:true},
+  'australia':       {lat:-25.0,lon:133.0, reg:'Australia',       global:true},
+  'brasil':          {lat:-15.0,lon:-52.0, reg:'Brazil',          global:true},
+  'brazil':          {lat:-15.0,lon:-52.0, reg:'Brazil',          global:true},
+  'africa':          {lat:1.0,  lon:20.0,  reg:'Africa',          global:true},
+  'middle east':     {lat:26.0, lon:50.0,  reg:'Middle East',     global:true},
+  'saudi':           {lat:24.0, lon:45.0,  reg:'Saudi Arabia',    global:true},
+  'russia':          {lat:60.0, lon:60.0,  reg:'Russia',          global:true},
+  'rusia':           {lat:60.0, lon:60.0,  reg:'Russia',          global:true},
+  'ukraine':         {lat:49.0, lon:32.0,  reg:'Ukraine',         global:true},
+  'ucrania':         {lat:49.0, lon:32.0,  reg:'Ukraine',         global:true},
+  'japan':           {lat:37.0, lon:138.0, reg:'Japan',           global:true},
+  'japón':           {lat:37.0, lon:138.0, reg:'Japan',           global:true},
+  'north sea':       {lat:56.0, lon:3.0,   reg:'North Sea',       global:true},
+  'españa':          {lat:40.4, lon:-3.7,  reg:'España'},
+  'spain':           {lat:40.4, lon:-3.7,  reg:'España'},
 };
 
-function extractLocation(text) {
+function extractLocation(text, feedGlobal) {
   const lower = text.toLowerCase();
-  // Longest match first
   const keys = Object.keys(LOCATIONS).sort((a,b) => b.length - a.length);
   for (const k of keys) {
     if (lower.includes(k)) {
       const loc = LOCATIONS[k];
-      return { lat: loc.lat, lon: loc.lon, name: LOCATIONS[k].reg || k };
+      return { lat: loc.lat, lon: loc.lon, name: loc.reg || k, isGlobal: !!(loc.global || feedGlobal) };
     }
   }
-  return { lat: 40.4, lon: -3.7, name: 'España' }; // default: Spain center
+  // Default: if feed is global, center on world; else Spain
+  if (feedGlobal) return { lat: 30.0, lon: 0.0, name: 'Global', isGlobal: true };
+  return { lat: 40.4, lon: -3.7, name: 'España', isGlobal: false };
 }
 
 function categorize(title, cats) {
@@ -160,10 +184,16 @@ let newsCacheTime = 0;
 const NEWS_TTL = 10 * 60 * 1000; // 10 min
 
 const FEEDS = [
-  { url: 'https://www.elperiodicodelaenergia.com/feed/', src: 'El Periódico de la Energía' },
-  { url: 'https://www.expansion.com/rss/empresas/energia.xml', src: 'Expansión Energía' },
-  { url: 'https://elpais.com/tag/energia/rss', src: 'El País Energía' },
-  { url: 'https://energia.gob.es/rss', src: 'MITECO' },
+  // ── Spanish sources ──────────────────────────────────────────
+  { url: 'https://www.elperiodicodelaenergia.com/feed/',         src: 'El Periódico de la Energía', global: false },
+  { url: 'https://www.expansion.com/rss/empresas/energia.xml',  src: 'Expansión Energía',          global: false },
+  { url: 'https://elpais.com/tag/energia/rss',                  src: 'El País Energía',            global: false },
+  { url: 'https://energia.gob.es/rss',                         src: 'MITECO',                     global: false },
+  // ── Global sources ───────────────────────────────────────────
+  { url: 'https://www.renewableenergyworld.com/feed/',          src: 'Renewable Energy World',     global: true  },
+  { url: 'https://feeds.feedburner.com/ieaenergy',             src: 'IEA',                        global: true  },
+  { url: 'https://www.energy-monitor.com/feed/',               src: 'Energy Monitor',             global: true  },
+  { url: 'https://www.spglobal.com/commodityinsights/en/rss-feed/natural-gas', src: 'S&P Global Energy', global: true },
 ];
 
 async function fetchNews() {
@@ -183,7 +213,7 @@ async function fetchNews() {
       const items = parseRSS(xml);
       for (const item of items.slice(0, 8)) {
         const fullText = item.title + ' ' + item.desc;
-        const loc = extractLocation(fullText);
+        const loc = extractLocation(fullText, feed.global);
         const cat = categorize(item.title, item.cats);
         const age = item.date ? timeAgo(new Date(item.date)) : 'reciente';
         results.push({
@@ -195,6 +225,7 @@ async function fetchNews() {
           lat: loc.lat,
           lon: loc.lon,
           locName: loc.name,
+          isGlobal: loc.isGlobal,
           title: item.title,
           desc: item.desc,
           cats: item.cats,

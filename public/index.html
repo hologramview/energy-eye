@@ -67,7 +67,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:9px
 #map{width:100%;height:100%}
 
 /* LEAFLET */
-body:not(.light) .leaflet-tile{filter:brightness(.28) saturate(.3) hue-rotate(195deg)}
+body:not(.light) .leaflet-tile{filter:brightness(.82) saturate(.75) hue-rotate(195deg) contrast(.9)}
 body.light .leaflet-tile{filter:none}
 body.light .leaflet-container{background:#a8c8e8!important}
 .leaflet-container{background:var(--bg)!important}
@@ -359,6 +359,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       <span class="news-hdr-lbl" id="lbl-news-hdr">Noticias del Sector Energético</span>
       <div class="news-cats">
         <button class="ncat active" onclick="filterNews('all')" id="ncat-all">Todo</button>
+        <button class="ncat" onclick="filterNews('global')" id="ncat-global">Global</button>
         <button class="ncat" onclick="filterNews('outage')" id="ncat-outage">Cortes</button>
         <button class="ncat" onclick="filterNews('weather')" id="ncat-weather">Meteorología</button>
         <button class="ncat" onclick="filterNews('market')" id="ncat-market">Mercado</button>
@@ -539,7 +540,7 @@ const T = {
     panel_alerts:'Alertas Relacionadas',
     panel_back:'Volver',
     news_hdr:'Noticias del Sector Energético',
-    news_all:'Todo', news_outage:'Cortes', news_weather:'Meteorología', news_market:'Mercado', news_reg:'Regulación',
+    news_all:'Todo', news_global:'Global', news_outage:'Cortes', news_weather:'Meteorología', news_market:'Mercado', news_reg:'Regulación',
     news_select:'Selecciona un artículo para leer',
     news_back:'← Volver',
     news_src:'Fuente', news_time:'Hora', news_loc:'Ubicación', news_read:'↗ Leer artículo completo',
@@ -573,7 +574,7 @@ const T = {
     panel_alerts:'Related Alerts',
     panel_back:'Back',
     news_hdr:'Energy Sector News',
-    news_all:'All', news_outage:'Outages', news_weather:'Weather', news_market:'Market', news_reg:'Regulation',
+    news_all:'All', news_global:'Global', news_outage:'Outages', news_weather:'Weather', news_market:'Market', news_reg:'Regulation',
     news_select:'Select an article to read',
     news_back:'← Back',
     news_src:'Source', news_time:'Time', news_loc:'Location', news_read:'↗ Read full article',
@@ -613,7 +614,7 @@ function applyLang() {
     'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts','tlbl-news':'tab_news',
     'lbl-news-hdr':'news_hdr',
     'lbl-panel-alerts':'panel_alerts','lbl-panel-back':'panel_back',
-    'ncat-all':'news_all','ncat-outage':'news_outage','ncat-weather':'news_weather','ncat-market':'news_market','ncat-reg':'news_reg',
+    'ncat-all':'news_all','ncat-global':'news_global','ncat-outage':'news_outage','ncat-weather':'news_weather','ncat-market':'news_market','ncat-reg':'news_reg',
     'ctab-chat':'faq_title_chat','ctab-faq':'faq_title_faq','lbl-news-back':'news_back',
     'q1':'q1','q2':'q2','q3':'q3','q4':'q4',
     'loading-txt':'loading',
@@ -881,11 +882,12 @@ const alertsData = [
 // ═══════════════════════════════════════════════
 //  MAP
 // ═══════════════════════════════════════════════
-const map = L.map('map', {center:[40.4,-3.7], zoom:6, minZoom:5, maxZoom:13});
+const map = L.map('map', {center:[40.4,-3.7], zoom:6, minZoom:2, maxZoom:13, zoomControl:false});
+L.control.zoom({position:'bottomright'}).addTo(map);
 
-const darkTiles = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const darkTiles  = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const lightTiles = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-let tileLayer = L.tileLayer(darkTiles, {
+let tileLayer = L.tileLayer(lightTiles, {
   attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
 }).addTo(map);
 
@@ -2351,7 +2353,9 @@ async function loadNews(force) {
 function renderNewsMapMarkers() {
   if (!map) return;
   clearNewsMapMarkers();
-  const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
+  const filtered = newsFilter === 'all' ? newsArticles
+    : newsFilter === 'global' ? newsArticles.filter(n => n.isGlobal)
+    : newsArticles.filter(n => n.cat === newsFilter && !n.isGlobal);
   const catColors = { outage:'#ff3535', weather:'#00c8ff', market:'#00ff88', reg:'#ffaa00' };
   filtered.forEach(n => {
     const col = catColors[n.cat] || '#aaa';
@@ -2371,7 +2375,9 @@ function renderNewsMapMarkers() {
 function renderNewsFeed() {
   const feed = document.getElementById('news-feed');
   if (!feed) return;
-  const filtered = newsFilter === 'all' ? newsArticles : newsArticles.filter(n => n.cat === newsFilter);
+  const filtered = newsFilter === 'all' ? newsArticles
+    : newsFilter === 'global' ? newsArticles.filter(n => n.isGlobal)
+    : newsArticles.filter(n => n.cat === newsFilter && !n.isGlobal);
   const CL = { outage:t('cat_outage'), weather:t('cat_weather'), market:t('cat_market'), reg:t('cat_reg') };
   if (!filtered.length) {
     feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">' + t('news_empty') + '</div>';
@@ -2426,6 +2432,10 @@ function filterNews(cat) {
   activeNewsId = null;
   const ndp2 = document.getElementById('news-detail-panel');
   if (ndp2) ndp2.style.display = 'none';
+  // Zoom map out for global view
+  if (cat === 'global') map.flyTo([30, 0], 2, {duration:0.8});
+  else if (cat === 'all')    map.flyTo([40.4,-3.7], 5, {duration:0.8});
+  else map.flyTo([40.4,-3.7], 5, {duration:0.6});
   renderNewsFeed();
   renderNewsMapMarkers();
 }
