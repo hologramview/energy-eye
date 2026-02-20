@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "functions": {
+    "api/news.js": { "maxDuration": 30 },
+    "api/chat.js": { "maxDuration": 30 }
+  },
+  "rewrites": [
+    { "source": "/api/news/refresh", "destination": "/api/news" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/$1" }
+  ]
+}

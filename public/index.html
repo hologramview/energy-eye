@@ -1694,7 +1694,7 @@ async function callAI() {
     } catch(serr) {
       throw new Error('Payload build failed: ' + serr.message);
     }
-    const res  = await fetch('http://localhost:3001/api/chat', {
+    const res  = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body,
     });
@@ -2353,7 +2353,7 @@ async function loadNews(force) {
   const feed = document.getElementById('news-feed');
   if (feed) feed.innerHTML = '<div style="padding:20px;font-family:var(--mono);font-size:.65rem;color:var(--muted);text-align:center">' + t('news_loading') + '</div>';
   try {
-    const endpoint = force ? 'http://localhost:3001/api/news/refresh' : 'http://localhost:3001/api/news';
+    const endpoint = force ? '/api/news/refresh' : '/api/news';
     const method = force ? 'POST' : 'GET';
     const r = await fetch(endpoint, { method });
     const data = await r.json();
