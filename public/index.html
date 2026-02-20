@@ -258,11 +258,19 @@ body.light #canarias-inset .leaflet-tile{filter:none}
 .chart-canvas-wrap{position:relative;width:100%}
 
 /* ── N-1 toggle ── */
-.btn-3d{position:absolute;top:10px;left:10px;z-index:900;font-family:var(--mono);font-size:.62rem;padding:5px 12px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px;display:none}
-.btn-3d:hover{border-color:var(--accent);color:var(--accent)}
-.btn-3d.active{background:rgba(0,200,255,.12);border-color:var(--accent);color:var(--accent)}
+.btn-3d{display:none!important}
 #deck-container{position:absolute;inset:0;z-index:500;display:none;background:var(--bg)}
 #deck-container canvas{width:100%!important;height:100%!important}
+/* ── 3D controls panel ── */
+#ctrl-3d{position:absolute;top:10px;left:10px;z-index:600;background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:8px 12px;display:none;font-family:var(--mono);font-size:.62rem;color:var(--text);box-shadow:0 2px 10px var(--shadow);min-width:150px}
+#ctrl-3d .ctrl-title{color:var(--muted);letter-spacing:2px;font-size:.5rem;text-transform:uppercase;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--bdr)}
+#ctrl-3d .ctrl-row{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;color:var(--text);transition:color .15s}
+#ctrl-3d .ctrl-row:hover{color:var(--accent)}
+#ctrl-3d .ctrl-row input[type=checkbox]{accent-color:var(--accent);width:11px;height:11px;cursor:pointer;flex-shrink:0}
+#ctrl-3d .ctrl-divider{border:none;border-top:1px solid var(--bdr);margin:5px 0}
+#ctrl-3d .ctrl-view-btns{display:flex;gap:4px;margin-top:2px}
+#ctrl-3d .ctrl-vbtn{flex:1;font-family:var(--mono);font-size:.55rem;padding:3px 0;border:1px solid var(--bdr);background:var(--bg);color:var(--muted);border-radius:3px;cursor:pointer;transition:all .15s;text-align:center}
+#ctrl-3d .ctrl-vbtn:hover,#ctrl-3d .ctrl-vbtn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,200,255,.08)}
 .n1-btn{position:absolute;top:10px;right:10px;z-index:900;font-family:var(--mono);font-size:.62rem;padding:5px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
 .n1-btn:hover{border-color:var(--amber);color:var(--amber)}
 .n1-btn.active{background:rgba(255,170,0,.15);border-color:var(--amber);color:var(--amber)}
@@ -359,6 +367,7 @@ body.light #canarias-inset .leaflet-tile{filter:none}
   <button class="tab" data-tab="comunidades" onclick="setTab('comunidades')"><span id="tlbl-ccaa">Comunidades Autónomas</span> <span class="tbadge">17</span></button>
   <button class="tab" data-tab="provincias"  onclick="setTab('provincias')" ><span id="tlbl-prov">Provincias</span> <span class="tbadge">50</span></button>
   <button class="tab" data-tab="red"         onclick="setTab('red')"        ><span id="tlbl-red">Red de Transporte</span></button>
+  <button class="tab" data-tab="3d"          onclick="setTab('3d')"         ><span id="tlbl-3d">⬡ Vista 3D</span></button>
   <button class="tab" data-tab="alertas"     onclick="setTab('alertas')"    ><span id="tlbl-alerts">Alertas</span> <span class="tbadge warn" id="tc-alt">5</span></button>
   <button class="tab" data-tab="noticias"    onclick="setTab('noticias')"   ><span id="tlbl-news">Noticias</span></button>
 </div>
@@ -398,6 +407,20 @@ body.light #canarias-inset .leaflet-tile{filter:none}
         <div id="canarias-inset"></div>
         <!-- deck.gl 3D canvas container -->
         <div id="deck-container"></div>
+        <!-- deck.gl 3D controls -->
+        <div id="ctrl-3d">
+          <div class="ctrl-title">Vista 3D</div>
+          <label class="ctrl-row"><input type="checkbox" id="chk-extrude" checked onchange="update3DLayers()"> Extrusión carga</label>
+          <label class="ctrl-row"><input type="checkbox" id="chk-fill" checked onchange="update3DLayers()"> Color estado</label>
+          <label class="ctrl-row"><input type="checkbox" id="chk-wire" onchange="update3DLayers()"> Wireframe</label>
+          <hr class="ctrl-divider">
+          <div class="ctrl-title">Ángulo cámara</div>
+          <div class="ctrl-view-btns">
+            <button class="ctrl-vbtn" onclick="set3DView(0,0)">Top</button>
+            <button class="ctrl-vbtn active" onclick="set3DView(50,-15)">3D</button>
+            <button class="ctrl-vbtn" onclick="set3DView(70,-20)">Low</button>
+          </div>
+        </div>
         <!-- deck.gl hover tooltip -->
         <div id="deck-tooltip" style="display:none;position:absolute;z-index:800;pointer-events:none;background:var(--surf);border:1px solid var(--bdr);border-radius:3px;padding:5px 9px;font-family:var(--mono);font-size:.65rem;color:var(--text);box-shadow:0 2px 8px var(--shadow);max-width:220px;line-height:1.5"></div>
 
@@ -563,7 +586,7 @@ const T = {
     subtitle:'AI Grid Operations Assistant',
     demand:'Demanda', ren:'Renovable', freq:'Frecuencia', alerts:'Alertas',
     tab_nacional:'España Nacional', tab_ccaa:'Comunidades Autónomas',
-    tab_prov:'Provincias', tab_red:'Red de Transporte', tab_alerts:'Alertas', tab_news:'Noticias',
+    tab_prov:'Provincias', tab_red:'Red de Transporte', tab_3d:'⬡ Vista 3D', tab_alerts:'Alertas', tab_news:'Noticias',
     select:'Selecciona una región', subtable:'Subestaciones', provinces:'Provincias',
     leg_ok:'Normal <80%', leg_warn:'Alta carga 80–95%', leg_fault:'Fallo / Crítico',
     leg_grid:'Red 400kV', leg_ave:'AVE Alta Velocidad', leg_ap:'Autopistas AP/A',
@@ -597,7 +620,7 @@ const T = {
     subtitle:'AI Grid Operations Assistant',
     demand:'Demand', ren:'Renewable', freq:'Frequency', alerts:'Alerts',
     tab_nacional:'Spain National', tab_ccaa:'Autonomous Communities',
-    tab_prov:'Provinces', tab_red:'Transport Network', tab_alerts:'Alerts', tab_news:'News',
+    tab_prov:'Provinces', tab_red:'Transport Network', tab_3d:'⬡ 3D View', tab_alerts:'Alerts', tab_news:'News',
     select:'Select a region', subtable:'Substations', provinces:'Provinces',
     leg_ok:'Normal <80%', leg_warn:'High load 80–95%', leg_fault:'Fault / Critical',
     leg_grid:'400kV Grid', leg_ave:'AVE High Speed Rail', leg_ap:'AP/A Motorways',
@@ -642,7 +665,7 @@ function applyLang() {
     'leg-ok':'leg_ok','leg-warn':'leg_warn','leg-fault':'leg_fault',
     'leg-grid':'leg_grid','leg-ave':'leg_ave','leg-ap':'leg_ap',
     'tlbl-nacional':'tab_nacional','tlbl-ccaa':'tab_ccaa','tlbl-prov':'tab_prov',
-    'tlbl-red':'tab_red','tlbl-alerts':'tab_alerts','tlbl-news':'tab_news',
+    'tlbl-red':'tab_red','tlbl-3d':'tab_3d','tlbl-alerts':'tab_alerts','tlbl-news':'tab_news',
     'lbl-news-hdr':'news_hdr',
     'lbl-panel-alerts':'panel_alerts','lbl-panel-back':'panel_back',
     'ncat-all':'news_all','ncat-global':'news_global','ncat-outage':'news_outage','ncat-weather':'news_weather','ncat-market':'news_market','ncat-reg':'news_reg',
@@ -1471,9 +1494,8 @@ async function setTab(tab) {
   document.getElementById('map-side').style.display = '';
   // Hide N-1 when leaving transport tab
   if (currentTab === 'red') showN1Button(false);
-  // Exit 3D mode when switching tabs
-  if (is3D) exit3D();
-  document.getElementById('btn-3d').style.display = 'none';
+  // Exit 3D mode when switching away from 3d tab
+  if (is3D && tab !== '3d') exit3D();
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
 
@@ -1523,7 +1545,6 @@ async function setTab(tab) {
     // hide inset prov layer if shown
     if (insetLayers.provincias) insetMap.removeLayer(insetLayers.provincias);
     if (insetLayers.ccaa) insetLayers.ccaa.addTo(insetMap);
-    document.getElementById('btn-3d').style.display = '';
   } else if (tab === 'provincias') {
     await loadProvincias();
     await loadInsetProvincias();
@@ -1533,6 +1554,11 @@ async function setTab(tab) {
     loadRed();
     map.flyTo([40.4,-3.7], 6, {duration:1});
     showN1Button(true);
+  } else if (tab === '3d') {
+    mapLegend.style.display = 'none';
+    redLegend.style.display = 'none';
+    await loadCCAA();
+    await enter3D();
   }
 }
 
@@ -2626,9 +2652,9 @@ async function enter3D() {
   }
 
   is3D = true;
-  const btn = document.getElementById('btn-3d');
-  btn.textContent = '⬡ 2D';
-  btn.classList.add('active');
+  document.getElementById('ctrl-3d').style.display        = '';
+  document.getElementById('canarias-inset').style.display = 'none';
+  document.getElementById('canarias-inset-label').style.display = 'none';
 
   // Hide Leaflet map
   document.getElementById('map').style.visibility = 'hidden';
@@ -2636,14 +2662,12 @@ async function enter3D() {
   deckEl.style.display = 'block';
 
   // Get current Leaflet center for initial view
-  const centre = map.getCenter();
-  const zoom   = Math.max(map.getZoom() - 1, 5);
 
-  // Translate leaflet zoom → deck.gl zoom (roughly same scale)
+  // Fixed view centred on Spain incl. Canary Islands
   const initialViewState = {
-    longitude: centre.lng,
-    latitude:  centre.lat,
-    zoom:      zoom,
+    longitude: -6.0,
+    latitude:  37.5,
+    zoom:      4.8,
     pitch:     50,
     bearing:   -15,
     transitionDuration: 800,
@@ -2676,7 +2700,7 @@ async function enter3D() {
     lineWidthMinPixels: 1,
     getElevation: f => {
       const d = ccaaData[f.properties.NUTS_ID];
-      return d ? d.load * 2000 : 0;      // 100% load → 200,000m visual height
+      return d ? d.load * 1000 : 0;
     },
     getFillColor: f => {
       const d = ccaaData[f.properties.NUTS_ID];
@@ -2729,13 +2753,56 @@ async function enter3D() {
 
 function exit3D() {
   is3D = false;
-  const btn = document.getElementById('btn-3d');
-  btn.textContent = '⬡ 3D';
-  btn.classList.remove('active');
   document.getElementById('deck-container').style.display = 'none';
   document.getElementById('deck-tooltip').style.display   = 'none';
+  document.getElementById('ctrl-3d').style.display        = 'none';
+  document.getElementById('canarias-inset').style.display = '';
+  document.getElementById('canarias-inset-label').style.display = '';
   document.getElementById('map').style.visibility = 'visible';
   map.invalidateSize();
+}
+
+function update3DLayers() {
+  if (!deckGL) return;
+  const extrude = document.getElementById('chk-extrude').checked;
+  const fill    = document.getElementById('chk-fill').checked;
+  const wire    = document.getElementById('chk-wire').checked;
+  const geojsonLayer = new deck.GeoJsonLayer({
+    id: 'ccaa-3d',
+    data: ccaaGeoJSON,
+    pickable: true,
+    stroked: true,
+    filled: fill,
+    extruded: extrude,
+    wireframe: wire,
+    lineWidthMinPixels: 1,
+    getElevation: f => { const d = ccaaData[f.properties.NUTS_ID]; return d ? d.load * 1000 : 0; },
+    getFillColor: f => { const d = ccaaData[f.properties.NUTS_ID]; return d ? deckColour(d.status, d.load) : [40,60,80,100]; },
+    getLineColor: [15, 45, 74, 180],
+    getLineWidth: 400,
+    elevationScale: 1,
+    material: { ambient:0.35, diffuse:0.6, shininess:32, specularColor:[60,140,200] },
+    onClick: ({ object }) => { if (!object) return; const id = object.properties?.NUTS_ID; if (id && ccaaData[id]) selectCCAA(id, null); },
+    onHover: ({ object, x, y }) => {
+      const el = document.getElementById('deck-tooltip');
+      if (object) {
+        const id = object.properties?.NUTS_ID; const d = ccaaData[id];
+        if (d) { el.style.display='block'; el.style.left=(x+12)+'px'; el.style.top=(y-28)+'px'; el.innerHTML=`<strong>${d.name}</strong><br>${lang==='es'?'Carga':'Load'}: <span style="color:var(--accent)">${d.load}%</span> · ${d.gen.toLocaleString()} MW`; }
+      } else { el.style.display='none'; }
+    },
+  });
+  const tileLayer = new deck.TileLayer({
+    id: 'basemap', data:'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    minZoom:0, maxZoom:15, tileSize:256,
+    renderSubLayers: props => { const {bbox:{west,south,east,north}}=props.tile; return new deck.BitmapLayer(props,{data:null,image:props.data,bounds:[west,south,east,north]}); },
+  });
+  deckGL.setProps({ layers: [tileLayer, geojsonLayer] });
+}
+
+function set3DView(pitch, bearing) {
+  document.querySelectorAll('.ctrl-vbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (deckGL) deckGL.setProps({ initialViewState: { ...deckGL.viewState, pitch, bearing, transitionDuration: 600 } });
 }
 
 </script>
