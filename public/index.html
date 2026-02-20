@@ -1179,8 +1179,7 @@ function loadRed() {
 
   function showRedPanel(type, name, d) {
     openSidePanel();
-  document.getElementById('side-ttl').innerHTML =
-      `<span style="color:var(--accent)">${name[lang]||name.es}</span>`;
+  setSideTtl(`<span style="color:var(--accent)">${name[lang]||name.es}</span>`);
     const rd = document.getElementById('region-detail');
     rd.className = 'rd show';
 
@@ -1418,8 +1417,7 @@ function selectCCAA(id, layer) {
   const col = sCol(d.status, d.load);
   // Side panel
   openSidePanel();
-  document.getElementById('side-ttl').innerHTML =
-    `<span style="color:var(--accent)">${d.name}</span>`;
+  setSideTtl(`<span style="color:var(--accent)">${d.name}</span>`);
   const rd = document.getElementById('region-detail');
   rd.className = 'rd show';
   rd.innerHTML = `
@@ -1456,7 +1454,7 @@ function selectProv(id, layer) {
   const parent = ccaaData[d.nuts2];
   const col    = sCol(d.status, d.load);
   openSidePanel();
-  document.getElementById('side-ttl').innerHTML = `<span style="color:var(--accent)">${d.name}</span>`;
+  setSideTtl(`<span style="color:var(--accent)">${d.name}</span>`);
   const rd = document.getElementById('region-detail');
   rd.className = 'rd show';
   rd.innerHTML = `
@@ -1537,7 +1535,7 @@ function resetView() {
   showBreadcrumb('', '');
   map.flyTo([40.4,-3.7], 6, {duration:1.2});
   openSidePanel();
-  document.getElementById('side-ttl').innerHTML = `<span id="lbl-select">${t('select')}</span>`;
+  setSideTtl(`<span id="lbl-select">${t('select')}</span>`);
   document.getElementById('region-detail').className = 'rd';
   renderSubList([]);
 }
@@ -2286,6 +2284,12 @@ function closePanelAlertDetail() {
 }
 
 // ─── PANEL VISIBILITY ──────────────────────────────────────────────────────
+// Always sets side-ttl with close button intact
+function setSideTtl(html) {
+  document.getElementById('side-ttl').innerHTML =
+    html + '<button class="side-close" onclick="closeSidePanel()" title="Close">✕</button>';
+}
+
 function openSidePanel() {
   document.getElementById('map-side').classList.add('open');
 }
