@@ -81,6 +81,16 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
 /* MAP LEGEND */
 .map-legend{position:absolute;bottom:36px;left:10px;background:var(--surf);border:1px solid var(--bdr);border-radius:4px;padding:8px 12px;z-index:500;box-shadow:0 2px 10px var(--shadow)}
+/* ── Canarias inset map ── */
+#canarias-inset{position:absolute;bottom:163px;left:10px;width:240px;height:150px;z-index:500;border:1px solid var(--bdr);border-radius:4px;overflow:hidden;box-shadow:0 2px 10px var(--shadow);background:var(--bg)}
+#canarias-inset-label{position:absolute;bottom:317px;left:10px;width:240px;text-align:center;font-family:var(--mono);font-size:.5rem;color:var(--muted);letter-spacing:1px;z-index:501;pointer-events:none;background:var(--surf);border:1px solid var(--bdr);border-bottom:none;border-radius:4px 4px 0 0;padding:2px 0;line-height:1.4}
+body:not(.light) #canarias-inset .leaflet-tile{filter:brightness(.82) saturate(.75) hue-rotate(195deg) contrast(.9)}
+body.light #canarias-inset .leaflet-tile{filter:none}
+#canarias-inset .leaflet-container{background:var(--bg)!important}
+#canarias-inset .leaflet-control-attribution{display:none!important}
+#canarias-inset .leaflet-control-zoom a{background:var(--surf)!important;color:var(--accent)!important;border-color:var(--bdr)!important;width:18px!important;height:18px!important;line-height:18px!important;font-size:13px!important}
+#canarias-inset .leaflet-control-zoom a:hover{background:var(--surf2)!important}
+#canarias-inset .leaflet-control-zoom{margin:4px!important}
 .leg-r{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:.6rem;color:var(--muted);margin-bottom:4px}
 .leg-r:last-child{margin-bottom:0}
 .leg-d{width:8px;height:8px;border-radius:50%;flex-shrink:0}
@@ -248,6 +258,11 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .chart-canvas-wrap{position:relative;width:100%}
 
 /* ── N-1 toggle ── */
+.btn-3d{position:absolute;top:10px;left:10px;z-index:900;font-family:var(--mono);font-size:.62rem;padding:5px 12px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px;display:none}
+.btn-3d:hover{border-color:var(--accent);color:var(--accent)}
+.btn-3d.active{background:rgba(0,200,255,.12);border-color:var(--accent);color:var(--accent)}
+#deck-container{position:absolute;inset:0;z-index:500;display:none;background:var(--bg)}
+#deck-container canvas{width:100%!important;height:100%!important}
 .n1-btn{position:absolute;top:10px;right:10px;z-index:900;font-family:var(--mono);font-size:.62rem;padding:5px 10px;border-radius:3px;border:1px solid var(--bdr);background:var(--surf);color:var(--muted);cursor:pointer;transition:all .2s;letter-spacing:1px}
 .n1-btn:hover{border-color:var(--amber);color:var(--amber)}
 .n1-btn.active{background:rgba(255,170,0,.15);border-color:var(--amber);color:var(--amber)}
@@ -379,6 +394,12 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       </div>
       <div class="map-wrap">
         <div id="map"></div>
+        <div id="canarias-inset-label">CANARIAS</div>
+        <div id="canarias-inset"></div>
+        <!-- deck.gl 3D canvas container -->
+        <div id="deck-container"></div>
+        <!-- deck.gl hover tooltip -->
+        <div id="deck-tooltip" style="display:none;position:absolute;z-index:800;pointer-events:none;background:var(--surf);border:1px solid var(--bdr);border-radius:3px;padding:5px 9px;font-family:var(--mono);font-size:.65rem;color:var(--text);box-shadow:0 2px 8px var(--shadow);max-width:220px;line-height:1.5"></div>
 
         <!-- Loading overlay -->
         <div class="loading" id="loading" style="display:none">
@@ -405,6 +426,9 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
         </div>
 
       </div>
+
+      <!-- 3D TOGGLE -->
+      <button class="btn-3d" id="btn-3d" onclick="toggle3D()">⬡ 3D</button>
 
       <!-- N-1 TOGGLE -->
       <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
@@ -527,6 +551,7 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9.0.0/dist.min.js"></script>
 <script>
 'use strict';
 
@@ -673,6 +698,7 @@ function toggleTheme() {
   document.body.classList.toggle('light', theme==='light');
   document.getElementById('theme-btn').textContent = theme==='dark'?'☀':'☾';
   tileLayer.setUrl(theme==='light' ? lightTiles : darkTiles);
+  insetTileLayer.setUrl(theme==='light' ? lightTiles : darkTiles);
   localStorage.setItem('eeTheme', theme);
 }
 
@@ -900,6 +926,79 @@ let tileLayer = L.tileLayer(lightTiles, {
 // Layer cache
 const layers = { nacional: null, ccaa: null, provincias: null, red: null };
 let currentTab = '';
+
+// ─── CANARIAS INSET MAP ───
+const insetMap = L.map('canarias-inset', {
+  center:[28.3,-15.9], zoom:6, minZoom:5, maxZoom:9,
+  zoomControl:true, zoomControlOptions:{position:'topright'}, attributionControl:false, dragging:false,
+  scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false, keyboard:false
+});
+let insetTileLayer = L.tileLayer(lightTiles, {
+  attribution:'', subdomains:'abcd', maxZoom:19
+}).addTo(insetMap);
+const insetLayers = { ccaa: null, provincias: null };
+
+// Sync tile theme with main map
+function syncInsetTheme() {
+  const isLight = document.body.classList.contains('light');
+  insetMap.eachLayer(l => { if (l._url) insetMap.removeLayer(l); });
+  insetTileLayer = L.tileLayer(isLight ? lightTiles : darkTiles, {
+    attribution:'', subdomains:'abcd', maxZoom:19
+  }).addTo(insetMap);
+  // Re-add GeoJSON layers on top
+  if (insetLayers.ccaa)      insetLayers.ccaa.addTo(insetMap);
+  if (insetLayers.provincias) insetLayers.provincias.addTo(insetMap);
+}
+
+async function loadInsetCCAA() {
+  if (insetLayers.ccaa) return;
+  try {
+    const r    = await fetch('/ccaa.geojson');
+    const data = await r.json();
+    insetLayers.ccaa = L.geoJSON(data, {
+      style: f => {
+        const d = ccaaData[f.properties.NUTS_ID];
+        return { fillColor: d ? sCol(d.status,d.load) : '#334', fillOpacity: d ? sOp(d.status,d.load) : .05, color:'#0f2d4a', weight:1.5 };
+      },
+      onEachFeature: (f, layer) => {
+        const id = f.properties.NUTS_ID;
+        const d  = ccaaData[id];
+        if (!d) return;
+        layer.bindTooltip(ttipCCAA(id), {sticky:true, opacity:1});
+        layer.on({
+          mouseover(e) { e.target.setStyle({weight:2.5, fillOpacity: sOp(d.status,d.load)+.18}); e.target.bringToFront(); },
+          mouseout(e)  { insetLayers.ccaa.resetStyle(e.target); },
+          click()      { selectCCAA(id, layer); }
+        });
+      }
+    }).addTo(insetMap);
+  } catch(e) { console.error('Inset CCAA load error:', e); }
+}
+
+async function loadInsetProvincias() {
+  if (insetLayers.provincias) return;
+  try {
+    const r    = await fetch('/provincias.geojson');
+    const data = await r.json();
+    insetLayers.provincias = L.geoJSON(data, {
+      style: f => {
+        const d = provData[f.properties.NUTS_ID];
+        return { fillColor: d ? sCol(d.status,d.load) : '#334', fillOpacity: d ? sOp(d.status,d.load) : .05, color:'#0f2d4a', weight:1 };
+      },
+      onEachFeature: (f, layer) => {
+        const id = f.properties.NUTS_ID;
+        const d  = provData[id];
+        if (!d) return;
+        layer.bindTooltip(ttipProv(id), {sticky:true, opacity:1});
+        layer.on({
+          mouseover(e) { e.target.setStyle({weight:2, fillOpacity: sOp(d.status,d.load)+.18}); e.target.bringToFront(); },
+          mouseout(e)  { insetLayers.provincias.resetStyle(e.target); },
+          click()      { selectProv(id, layer); }
+        });
+      }
+    }).addTo(insetMap);
+  } catch(e) { console.error('Inset Provincias load error:', e); }
+}
 let demand=28450, ren=68, freq=50.01;
 const chatHistory = [];
 
@@ -1372,6 +1471,9 @@ async function setTab(tab) {
   document.getElementById('map-side').style.display = '';
   // Hide N-1 when leaving transport tab
   if (currentTab === 'red') showN1Button(false);
+  // Exit 3D mode when switching tabs
+  if (is3D) exit3D();
+  document.getElementById('btn-3d').style.display = 'none';
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
 
@@ -1417,8 +1519,16 @@ async function setTab(tab) {
     map.flyTo([40.4,-3.7], 6, {duration:1});
   } else if (tab === 'comunidades') {
     await loadCCAA();
+    await loadInsetCCAA();
+    // hide inset prov layer if shown
+    if (insetLayers.provincias) insetMap.removeLayer(insetLayers.provincias);
+    if (insetLayers.ccaa) insetLayers.ccaa.addTo(insetMap);
+    document.getElementById('btn-3d').style.display = '';
   } else if (tab === 'provincias') {
     await loadProvincias();
+    await loadInsetProvincias();
+    if (insetLayers.ccaa) insetMap.removeLayer(insetLayers.ccaa);
+    if (insetLayers.provincias) insetLayers.provincias.addTo(insetMap);
   } else if (tab === 'red') {
     loadRed();
     map.flyTo([40.4,-3.7], 6, {duration:1});
@@ -2483,6 +2593,151 @@ document.getElementById('theme-btn').textContent = theme === 'dark' ? '☀' : '�
 if (theme === 'light') tileLayer.setUrl(lightTiles);
 
 setTab('comunidades');
+
+// ═══════════════════════════════════════════════════════════
+//  3D EXTRUSION ENGINE — deck.gl
+// ═══════════════════════════════════════════════════════════
+let is3D       = false;
+let deckGL     = null;
+let ccaaGeoJSON = null;  // cached GeoJSON
+
+// Colour lookup matching 2D map
+function deckColour(status, load) {
+  if (status === 'fault')   return [255, 60,  60,  230];
+  if (load >= 80)           return [255, 170, 0,   230];
+  return [0, 200, 80, 200];
+}
+
+async function toggle3D() {
+  if (!is3D) {
+    await enter3D();
+  } else {
+    exit3D();
+  }
+}
+
+async function enter3D() {
+  // Need GeoJSON — reuse cached or fetch
+  if (!ccaaGeoJSON) {
+    try {
+      const r = await fetch('/ccaa.geojson');
+      ccaaGeoJSON = await r.json();
+    } catch(e) { console.error('3D: GeoJSON load failed', e); return; }
+  }
+
+  is3D = true;
+  const btn = document.getElementById('btn-3d');
+  btn.textContent = '⬡ 2D';
+  btn.classList.add('active');
+
+  // Hide Leaflet map
+  document.getElementById('map').style.visibility = 'hidden';
+  const deckEl = document.getElementById('deck-container');
+  deckEl.style.display = 'block';
+
+  // Get current Leaflet center for initial view
+  const centre = map.getCenter();
+  const zoom   = Math.max(map.getZoom() - 1, 5);
+
+  // Translate leaflet zoom → deck.gl zoom (roughly same scale)
+  const initialViewState = {
+    longitude: centre.lng,
+    latitude:  centre.lat,
+    zoom:      zoom,
+    pitch:     50,
+    bearing:   -15,
+    transitionDuration: 800,
+  };
+
+  const tileLayer = new deck.TileLayer({
+    id: 'basemap',
+    data: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    minZoom: 0,
+    maxZoom: 15,
+    tileSize: 256,
+    renderSubLayers: props => {
+      const { bbox: { west, south, east, north } } = props.tile;
+      return new deck.BitmapLayer(props, {
+        data: null,
+        image: props.data,
+        bounds: [west, south, east, north],
+      });
+    },
+  });
+
+  const geojsonLayer = new deck.GeoJsonLayer({
+    id: 'ccaa-3d',
+    data: ccaaGeoJSON,
+    pickable: true,
+    stroked: true,
+    filled: true,
+    extruded: true,
+    wireframe: false,
+    lineWidthMinPixels: 1,
+    getElevation: f => {
+      const d = ccaaData[f.properties.NUTS_ID];
+      return d ? d.load * 2000 : 0;      // 100% load → 200,000m visual height
+    },
+    getFillColor: f => {
+      const d = ccaaData[f.properties.NUTS_ID];
+      return d ? deckColour(d.status, d.load) : [40, 60, 80, 100];
+    },
+    getLineColor: [15, 45, 74, 180],
+    getLineWidth: 400,
+    elevationScale: 1,
+    material: {
+      ambient:   0.35,
+      diffuse:   0.6,
+      shininess: 32,
+      specularColor: [60, 140, 200],
+    },
+    onClick: ({ object }) => {
+      if (!object) return;
+      const id = object.properties?.NUTS_ID;
+      if (id && ccaaData[id]) selectCCAA(id, null);
+    },
+    onHover: ({ object, x, y }) => {
+      const el = document.getElementById('deck-tooltip');
+      if (object) {
+        const id = object.properties?.NUTS_ID;
+        const d  = ccaaData[id];
+        if (d) {
+          el.style.display  = 'block';
+          el.style.left     = (x + 12) + 'px';
+          el.style.top      = (y - 28) + 'px';
+          el.innerHTML      = `<strong>${d.name}</strong><br>${lang==='es'?'Carga':'Load'}: <span style="color:var(--accent)">${d.load}%</span> · ${d.gen.toLocaleString()} MW`;
+        }
+      } else {
+        el.style.display = 'none';
+      }
+    },
+    transitions: { getElevation: { duration: 600, easing: t => t < 0.5 ? 2*t*t : -1+(4-2*t)*t } },
+  });
+
+  if (deckGL) {
+    deckGL.setProps({ layers: [tileLayer, geojsonLayer], initialViewState });
+  } else {
+    deckGL = new deck.DeckGL({
+      container:        deckEl,
+      initialViewState,
+      controller:       true,
+      layers:           [tileLayer, geojsonLayer],
+      getTooltip:       null,  // using custom tooltip
+    });
+  }
+}
+
+function exit3D() {
+  is3D = false;
+  const btn = document.getElementById('btn-3d');
+  btn.textContent = '⬡ 3D';
+  btn.classList.remove('active');
+  document.getElementById('deck-container').style.display = 'none';
+  document.getElementById('deck-tooltip').style.display   = 'none';
+  document.getElementById('map').style.visibility = 'visible';
+  map.invalidateSize();
+}
+
 </script>
 </body>
 </html>
