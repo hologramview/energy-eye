@@ -271,6 +271,11 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
 .news-feed::-webkit-scrollbar{width:3px}
 .news-feed::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px}
 .news-detail{overflow-y:auto;background:var(--bg)}
+.news-side-panel{width:0;display:none;flex-direction:column;background:var(--bg);overflow:hidden;flex-shrink:0;transition:width .2s ease}
+.news-side-panel[style*="flex"]{width:300px;border-right:1px solid var(--bdr)}
+.news-detail-side[style*="flex"]{width:340px;border-right:none;border-left:1px solid var(--bdr)}
+.news-side-scroll{flex:1;overflow-y:auto;min-height:0}
+.news-detail-hdr{flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
 .news-detail::-webkit-scrollbar{width:3px}
 .news-detail-empty{display:flex;align-items:center;justify-content:center;height:100%;font-family:var(--mono);font-size:.65rem;color:var(--muted)}
 .ni{padding:10px 12px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .15s;animation:slin .3s ease}
@@ -368,6 +373,10 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
       <button class="news-refresh" onclick="refreshNews()" id="news-refresh-btn" title="Actualizar">↻</button>
     </div>
     <div class="map-body" id="map-body">
+      <!-- NEWS FEED PANEL — flex sibling left of map, no z-index needed -->
+      <div id="news-feed-panel" class="news-side-panel" style="display:none">
+        <div class="news-side-scroll" id="news-feed"></div>
+      </div>
       <div class="map-wrap">
         <div id="map"></div>
 
@@ -395,22 +404,19 @@ body.light .leaflet-control-attribution{background:rgba(240,244,248,.85)!importa
           <div class="leg-r"><div class="leg-line" style="background:#ffaa00"></div><span id="leg-ap">Autopistas AP/A</span></div>
         </div>
 
-        <!-- NEWS FEED PANEL — inside map-wrap (position:relative) -->
-        <div id="news-feed-panel" style="display:none;position:absolute;top:0;left:0;bottom:0;width:300px;z-index:600;background:var(--bg);border-right:1px solid var(--bdr);flex-direction:column;overflow:hidden">
-          <div style="flex:1;overflow-y:auto" id="news-feed"></div>
-        </div>
-        <!-- NEWS DETAIL PANEL — slides in from right -->
-        <div id="news-detail-panel" style="display:none;position:absolute;top:0;right:0;bottom:0;width:340px;z-index:600;background:var(--bg);border-left:1px solid var(--bdr);flex-direction:column;overflow:hidden">
-          <div style="flex-shrink:0;padding:6px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between">
-            <button class="panel-al-back" id="lbl-news-back" onclick="closeNewsDetail()" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:var(--mono);font-size:.65rem">← Volver</button>
-            <button class="side-close" onclick="closeNewsDetail()">✕</button>
-          </div>
-          <div id="news-detail-body" style="overflow-y:auto;flex:1;padding:0"></div>
-        </div>
       </div>
 
       <!-- N-1 TOGGLE -->
       <button class="n1-btn" id="n1-btn" onclick="toggleN1()" style="display:none">N-1 OFF</button>
+
+      <!-- NEWS DETAIL PANEL — flex sibling right of map -->
+      <div id="news-detail-panel" class="news-side-panel news-detail-side" style="display:none">
+        <div class="news-detail-hdr">
+          <button class="panel-al-back" id="lbl-news-back" onclick="closeNewsDetail()">← Volver</button>
+          <button class="side-close" onclick="closeNewsDetail()">✕</button>
+        </div>
+        <div id="news-detail-body" class="news-side-scroll"></div>
+      </div>
 
       <!-- SIDE PANEL -->
       <div class="map-side" id="map-side">
@@ -1360,9 +1366,10 @@ async function setTab(tab) {
   const nfp2 = document.getElementById('news-feed-panel');
   const ndp = document.getElementById('news-detail-panel');
   if (ntb) ntb.style.display = 'none';
-  if (nfp2) nfp2.style.display = 'none';
-  if (ndp) ndp.style.display = 'none';
+  if (nfp2) { nfp2.style.display = 'none'; nfp2.style.width = '0'; }
+  if (ndp)  { ndp.style.display  = 'none'; ndp.style.width  = '0'; }
   clearNewsMapMarkers();
+  document.getElementById('map-side').style.display = '';
   // Hide N-1 when leaving transport tab
   if (currentTab === 'red') showN1Button(false);
   currentTab = tab;
@@ -1381,12 +1388,18 @@ async function setTab(tab) {
     return;
   }
   if (tab === 'noticias') {
-    mapBody.style.display    = 'flex';   // SHOW the main map
+    mapBody.style.display    = 'flex';
     alertsView.style.display = 'none';
     mapLegend.style.display  = 'none';
     redLegend.style.display  = 'none';
     document.getElementById('news-toolbar-bar').style.display = 'flex';
-    document.getElementById('news-feed-panel').style.display  = 'flex';
+    // Show feed as flex sibling (not absolute overlay)
+    const nfp = document.getElementById('news-feed-panel');
+    nfp.style.display = 'flex';
+    nfp.style.width   = '300px';
+    nfp.style.borderRight = '1px solid var(--bdr)';
+    // Hide map-side so it doesn't compete
+    document.getElementById('map-side').style.display = 'none';
     setTimeout(() => {
       map.invalidateSize();
       if (!newsArticles.length) loadNews(false);
@@ -2329,7 +2342,10 @@ function clearNewsMapMarkers() {
 
 function closeNewsDetail() {
   activeNewsId = null;
-  document.getElementById('news-detail-panel').style.display = 'none';
+  const ndp = document.getElementById('news-detail-panel');
+  ndp.style.display = 'none';
+  ndp.style.width = '0';
+  map.invalidateSize();
   renderNewsFeed();
 }
 
@@ -2401,10 +2417,13 @@ function showNewsDetail(id) {
   // Fly MAIN map to location
   if (map) map.flyTo([n.lat, n.lon], n.locName === 'España' ? 6 : 9, { duration: 0.8 });
 
-  // Show detail panel
+  // Show detail panel as proper flex sibling
   const panel = document.getElementById('news-detail-panel');
   panel.style.display = 'flex';
   panel.style.flexDirection = 'column';
+  panel.style.width = '340px';
+  panel.style.borderLeft = '1px solid var(--bdr)';
+  map.invalidateSize();
   const body = document.getElementById('news-detail-body');
   body.style.display = '';
   body.innerHTML =
